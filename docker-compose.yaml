@@ -1,0 +1,12 @@
+version: '3.7'
+
+services:
+  echoip:
+    container_name: echoip
+    image: mpolden/echoip
+    command: "-C 0 -p -r -H X-Forwarded-For -H X-Real-IP -a /data/geolite2/GeoLite2-ASN.mmdb -c /data/geolite2/GeoLite2-City.mmdb -f /data/geolite2/GeoLite2-Country.mmdb  -t /data/html"
+    ports:
+      - 127.0.0.1:7373:8080
+    volumes:
+      - ./:/data:ro
+    restart: always
