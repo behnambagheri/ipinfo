@@ -43,6 +43,14 @@ test('IPv4 detection uses the browser-only IPv4 endpoint and loads the detected 
   await browser.click('4');
   assert.equal(browser.navigations[0], 'https://ip.bea.sh/?ip=8.8.4.4&family=4');
 });
+test('the already-observed visitor family is reused without relying on an external service', async () => {
+  const ip = '2a05:d016:132:9300:ee44:7663:fbeb:cfa8';
+  const browser = page(ip);
+  await browser.click('6');
+  const target = new URL(browser.navigations[0]);
+  assert.equal(target.searchParams.get('ip'), ip);
+  assert.equal(target.searchParams.get('family'), '6');
+});
 test('IPv6 preserves the full address and wraps at hextet boundaries', async () => {
   const ip = '2a05:d016:132:9300:ee44:7663:fbeb:cfa8';
   const browser = page(ip, `/?ip=${ip}&family=6`, async url => {

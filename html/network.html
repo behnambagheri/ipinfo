@@ -30,7 +30,7 @@
     });
     if (activeFamily && activeFamily !== "auto") {
       document.getElementById("ip-title").textContent = `Your IPv${activeFamily} address`;
-      status.textContent = `IPv${activeFamily} detected via ipify. Select Auto to return to your current connection.`;
+      status.textContent = `IPv${activeFamily} selected. Select Auto to return to your current connection.`;
     }
     controls.classList.replace("hidden", "flex");
 
@@ -40,6 +40,17 @@
       pending?.abort();
       if (family === "auto") {
         window.location.assign(new URL("/", currentURL.origin).href);
+        return;
+      }
+      function showAddress(value) {
+        const target = new URL("/", currentURL.origin);
+        target.searchParams.set("ip", value);
+        target.searchParams.set("family", family);
+        window.location.assign(target.href);
+      }
+      // A visitor address already observed by this service needs no external detection.
+      if (!currentURL.searchParams.has("ip") && matchesFamily(ip, family)) {
+        showAddress(ip);
         return;
       }
       const controller = new AbortController();
@@ -55,10 +66,7 @@
         const result = await response.json();
         if (!matchesFamily(result.ip, family)) throw new Error("Unexpected address version");
         if (controller.signal.aborted) return;
-        const target = new URL("/", currentURL.origin);
-        target.searchParams.set("ip", result.ip);
-        target.searchParams.set("family", family);
-        window.location.assign(target.href);
+        showAddress(result.ip);
       } catch {
         if (pending === controller) status.textContent = `Could not detect your IPv${family} address. Your network may not support IPv${family}, or ipify could not be reached. Auto is still available.`;
       } finally {
