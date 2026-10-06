@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 
-const script = (await readFile(new URL('../html/connection.html', import.meta.url), 'utf8')).replace(/^<script>\s*|\s*<\/script>\s*$/g, '');
+const script = (await readFile(new URL('../html/network.html', import.meta.url), 'utf8')).replace(/^<script>\s*|\s*<\/script>\s*$/g, '');
 function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Unexpected background request'); }) {
   function element(dataset = {}) {
     const classes = new Set();
