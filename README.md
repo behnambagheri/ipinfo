@@ -15,15 +15,19 @@ embedded; the browser does not download a CSS framework.
 | Runtime | Cloudflare edge JavaScript | [echoip](https://github.com/mpolden/echoip) |
 | Visitor IP | Cloudflare's `CF-Connecting-IP` | Connection peer; optionally trusted proxy headers |
 | Visitor geolocation | Cloudflare request metadata | Bundled GeoLite2 databases |
-| Explicit `?ip=` lookup | HTTPS [IPWHOIS](https://ipwhois.io/documentation), cached for 24 hours | Local GeoLite2 lookup |
+| Explicit `?ip=` lookup | HTTPS [IPWHOIS](https://ipwhois.io/documentation) with [IP Guide](https://ip.guide) fallback, cached for 24 hours | Local GeoLite2 lookup |
 | Reverse DNS | Unavailable | Enabled by default |
 | TCP port checks | Unavailable (HTTP 501) | Opt-in via `ECHOIP_PORT_LOOKUP=true` |
 
 The hosted Worker serves visitor metadata without external lookup requests.
-Explicit public-IP lookups send only the queried address to IPWHOIS. Reserved
+Explicit public-IP lookups send only the queried address to IPWHOIS and, if it
+fails or reaches its quota, IP Guide. Reserved
 and private addresses return an address-only result without contacting a
 provider. IPWHOIS's free endpoint has a documented limit of 1,000 requests/day
-per requesting IP and no uptime SLA; provider failures return HTTP 502. The
+per requesting IP and no uptime SLA. Workers may share outbound addresses
+and exhaust this quota. IP Guide provides fallback network/location data;
+unavailable fields stay blank. If both providers fail, the Worker returns HTTP
+502. Each provider request has a four-second timeout. The
 self-hosted container has no external geolocation API dependency.
 IP geolocation is approximate and can reflect a VPN or provider's location.
 
@@ -192,5 +196,6 @@ pull it; private pulls require credentials via `imagePullSecrets`.
 
 The container uses [echoip](https://github.com/mpolden/echoip) (BSD 3-Clause),
 GeoLite2/MaxMind, and the database mirror. The Worker uses Cloudflare metadata
-and IPWHOIS for explicit public-IP lookup. Both interfaces use daisyUI,
+and IPWHOIS with IP Guide fallback for explicit public-IP lookup. IP Guide
+credits [MaxMind](https://www.maxmind.com) for its location data. Both interfaces use daisyUI,
 Tailwind CSS, and [OpenStreetMap](https://www.openstreetmap.org/copyright).

@@ -32,7 +32,7 @@ test('shared HTML renders safely with active map and hides container-only port f
   const html = await result.text();
   assert.match(html, /IP Info — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
   assert.match(html, /&lt;\/script&gt;/); assert.ok(!html.includes('</script><script>alert(1)</script>'));
-  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare and IPWHOIS/);
+  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare, IPWHOIS and IP Guide/);
   assert.ok(result.headers.has('Content-Security-Policy'));
 });
 test('missing geolocation produces a useful map placeholder', async () => {
@@ -55,6 +55,29 @@ test('invalid custom IP never reaches a provider, private lookups stay local, an
   const local = await handleRequest(request('/json?ip=192.168.1.1'), {}, {}, forbidden);
   assert.equal(local.status, 200); assert.equal((await local.json()).source, 'Reserved address');
   assert.equal((await handleRequest(request('/json?ip=1.1.1.1'), {}, {}, async () => new Response('', { status: 429 }))).status, 502);
+  let calls = 0;
+  const redirected = await handleRequest(request('/json?ip=1.1.1.1'), {}, {}, async (url, options) => {
+    calls++;
+    assert.ok(['https://ipwho.is/1.1.1.1', 'https://ip.guide/1.1.1.1'].includes(url));
+    assert.equal(options.redirect, 'manual');
+    return new Response(null, { status: 302, headers: { Location: 'http://127.0.0.1/' } });
+  });
+  assert.equal(redirected.status, 502); assert.equal(calls, 2);
+});
+test('provider throttling falls back without inventing missing geolocation', async () => {
+  const fetcher = async url => url.startsWith('https://ipwho.is/')
+    ? new Response('', { status: 429 })
+    : Response.json({ ip: '2606:4700:4700::1111', network: { autonomous_system: { asn: 13335, organization: 'Cloudflare' } }, location: { country: null, latitude: null, longitude: null } });
+  const result = await handleRequest(request('/json?ip=2606:4700:4700::1111'), {}, {}, fetcher);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.source, 'IP Guide'); assert.equal(data.asn, 'AS13335'); assert.equal(typeof data.ip_decimal, 'string');
+  assert.equal(data.country_iso, undefined); assert.equal(data.latitude, undefined);
+  const located = await handleRequest(request('/json?ip=1.1.1.1'), {}, {}, async url => url.startsWith('https://ipwho.is/')
+    ? new Response('', { status: 429 })
+    : Response.json({ ip: '1.1.1.1', network: {}, location: { country: 'United Kingdom', latitude: 51.5, longitude: -0.1 } }));
+  const locatedData = await located.json();
+  assert.equal(locatedData.country_iso, 'GB'); assert.equal(locatedData.country_eu, false);
 });
 test('unsupported endpoints, methods, HEAD, and unavailable client IP are explicit', async () => {
   assert.equal((await handleRequest(request('/unknown'))).status, 404);

@@ -4,6 +4,13 @@ import { normalizeIP, decimalIP, privateIP } from './ip.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_eu', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
+const countryCodes = new Map();
+for (const a of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const b of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') {
+  const code = a + b;
+  const name = countries.of(code);
+  if (name !== code && code !== 'ZZ') countryCodes.set(name, new Intl.Locale(`und-${code}`).region);
+}
+const euCountries = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
 const securityHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
@@ -25,13 +32,28 @@ async function lookup(ip, context, fetcher) {
   const cache = globalThis.caches?.default;
   const cached = await cache?.match(key);
   if (cached) return cached.json();
-  const upstream = await fetcher(`https://ipwho.is/${encodeURIComponent(ip)}`, { signal: AbortSignal.timeout(8000), redirect: 'error', headers: { Accept: 'application/json' } });
-  if (!upstream.ok) throw new Error('Lookup provider unavailable');
-  const result = await upstream.json();
-  if (!result.success || normalizeIP(result.ip) !== ip) throw new Error('Lookup provider could not resolve this address');
-  const data = { ip, ip_decimal: decimalIP(ip), country: result.country, country_iso: result.country_code, country_eu: result.is_eu, city: result.city, region_name: result.region, region_code: result.region_code, postal_code: result.postal, timezone: result.timezone?.id, latitude: number(result.latitude), longitude: number(result.longitude), asn: result.connection?.asn ? `AS${result.connection.asn}` : undefined, asn_org: result.connection?.org, source: 'IPWHOIS' };
+  let data;
+  try {
+    const result = await providerJSON(`https://ipwho.is/${encodeURIComponent(ip)}`, fetcher);
+    if (!result.success || normalizeIP(result.ip) !== ip) throw new Error('Lookup provider could not resolve this address');
+    data = { ip, ip_decimal: decimalIP(ip), country: result.country, country_iso: result.country_code, country_eu: result.is_eu, city: result.city, region_name: result.region, region_code: result.region_code, postal_code: result.postal, timezone: result.timezone?.id, latitude: number(result.latitude), longitude: number(result.longitude), asn: result.connection?.asn ? `AS${result.connection.asn}` : undefined, asn_org: result.connection?.org, source: 'IPWHOIS' };
+  } catch {
+    // Free provider quotas can be shared by unrelated Workers using the same outbound address.
+    const result = await providerJSON(`https://ip.guide/${encodeURIComponent(ip)}`, fetcher);
+    if (normalizeIP(result.ip) !== ip || !result.network) throw new Error('Fallback provider could not resolve this address');
+    const location = result.location || {};
+    const network = result.network.autonomous_system || {};
+    const country = countryCodes.get(location.country);
+    data = { ip, ip_decimal: decimalIP(ip), country: location.country || undefined, country_iso: country, country_eu: country ? euCountries.has(country) : undefined, city: location.city || undefined, timezone: location.timezone || undefined, latitude: number(location.latitude), longitude: number(location.longitude), asn: network.asn ? `AS${network.asn}` : undefined, asn_org: network.organization, source: 'IP Guide' };
+  }
   if (cache && context?.waitUntil) context.waitUntil(cache.put(key, new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' } })));
   return data;
+}
+async function providerJSON(url, fetcher) {
+  // Workers supports manual redirects. Never follow an upstream redirect to a different host.
+  const upstream = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: 'manual', headers: { Accept: 'application/json' } });
+  if (!upstream.ok) throw new Error('Lookup provider unavailable');
+  return upstream.json();
 }
 export async function handleRequest(request, env = {}, context = {}, fetcher = fetch) {
   const head = request.method === 'HEAD';
