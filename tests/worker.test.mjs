@@ -30,7 +30,7 @@ test('content negotiation returns plain IP to curl and JSON when requested', asy
 test('shared HTML renders safely with active map and hides container-only port feature', async () => {
   const result = await handleRequest(request('/', { Accept: 'text/html', 'User-Agent': '</script><script>alert(1)</script>' }));
   const html = await result.text();
-  assert.match(html, /IP Info — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
+  assert.match(html, /IPinfo — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
   assert.match(html, /&lt;\/script&gt;/); assert.ok(!html.includes('</script><script>alert(1)</script>'));
   assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare, IPWHOIS and IP Guide/);
   assert.ok(result.headers.has('Content-Security-Policy'));

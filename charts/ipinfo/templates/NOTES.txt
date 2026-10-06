@@ -1,4 +1,4 @@
-IP Info is running as {{ include "ipinfo.fullname" . }}.
+IPinfo is running as {{ include "ipinfo.fullname" . }}.
 
 For local access:
   kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "ipinfo.fullname" . }} 8080:{{ .Values.service.port }}

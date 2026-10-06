@@ -1,4 +1,4 @@
-# IP Info — bea.sh
+# IPinfo — bea.sh
 
 An IP and network diagnostic service for [bea.sh](https://bea.sh), with a
 responsive daisyUI 5 / Tailwind CSS 4 interface. The blue accents,
@@ -206,7 +206,7 @@ and semver tags for `v*` releases. Pull requests do not publish images.
 The Helm package is downloadable as a workflow artifact. No registry
 password or external CI service is required.
 
-GitHub initially creates some container packages as private. Set the IP Info
+GitHub initially creates some container packages as private. Set the IPinfo
 package visibility to public in GitHub Packages if anonymous users cannot
 pull it; private pulls require credentials via `imagePullSecrets`.
 
