@@ -8,6 +8,14 @@ The HTML, query builder, copy actions, usage dialog, and OpenStreetMap view are
 shared by the Cloudflare Worker and self-hosted container. CSS is compiled and
 embedded; the browser does not download a CSS framework.
 
+Auto keeps the original behavior: the address used to connect to this service.
+The optional IPv4 and IPv6 buttons contact the corresponding
+[ipify endpoint](https://www.ipify.org/) from the browser only when clicked,
+then look up that detected address here. IPv6 requires a working IPv6 connection;
+if detection fails, the current page stays available with an explanatory message.
+The choice is not stored as a default. Long IPv6 addresses use smaller type and
+wrap between hextets; copying still includes the complete address.
+
 ## Deployment options
 
 | | Cloudflare Worker | Container / Kubernetes |
