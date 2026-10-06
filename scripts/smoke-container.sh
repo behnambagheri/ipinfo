@@ -12,7 +12,7 @@ done
 curl -fsS "$origin/json?ip=8.8.8.8" | jq -e '.ip == "8.8.8.8" and .country_iso == "US" and .asn == "AS15169"'
 curl -fsS "$origin/json?ip=2606:4700:4700::1111" | jq -e '.ip == "2606:4700:4700::1111"'
 curl -fsS -A 'Mozilla/5.0' -H 'Accept: text/html' "$origin/" > /tmp/ipinfo-container.html
-rg 'IP Info — bea.sh' /tmp/ipinfo-container.html
+grep -Fq 'IP Info — bea.sh' /tmp/ipinfo-container.html
 actual="$(curl -fsS "$origin/ip")"
 spoofed="$(curl -fsS -H 'X-Forwarded-For: 203.0.113.10' -H 'X-Real-IP: 203.0.113.20' "$origin/ip")"
 test "$actual" = "$spoofed"
