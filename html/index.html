@@ -59,6 +59,7 @@
               <p id="ip-address" data-ip="{{ .IP }}" dir="ltr" class="mt-2 max-w-full wrap-anywhere font-mono text-3xl font-semibold tracking-tight sm:text-5xl">{{ .IP }}</p>
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-3">
+              {{ if .ExplicitLookup }}<a id="show-my-ip" href="/" class="btn btn-secondary hidden"><span aria-hidden="true">←</span> Show my IP</a>{{ end }}
               <button id="copy-ip" type="button" class="btn btn-primary">Copy IP address</button>
               <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}" class="btn btn-ghost">View JSON <span aria-hidden="true">↗</span></a>
             </div>
@@ -90,7 +91,6 @@
           <input id="lookup-ip" name="ip" type="text" class="input w-full bg-base-100 font-mono" placeholder="IPv4 or IPv6 address" required autocomplete="off" spellcheck="false" />
         </div>
         <button type="submit" class="btn">Look up address <span aria-hidden="true">→</span></button>
-        {{ if .ExplicitLookup }}<a id="show-my-ip" href="/" class="btn btn-ghost">Show my IP <span aria-hidden="true">↩</span></a>{{ end }}
       </form>
       {{ end }}
       <div class="grid items-start gap-6 lg:grid-cols-2">

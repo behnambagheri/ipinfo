@@ -23,6 +23,26 @@
       ? ipv4.test(value) && value.split(".").every((part) => Number(part) <= 255)
       : ipv6.test(value) && value.includes(":"));
     const activeFamily = ["4", "6"].includes(selected) && matchesFamily(ip, selected) ? selected : selected === "auto" ? "auto" : null;
+    const showMyIP = document.getElementById("show-my-ip");
+    if (showMyIP && !["4", "6"].includes(activeFamily)) {
+      // Compare against this service's connection IP, not another discovery provider.
+      async function updateReturnLink() {
+        try {
+          const response = await fetch(new URL("/ip", currentURL.origin).href, {
+            signal: AbortSignal.timeout(4000), cache: "no-store", redirect: "error",
+            headers: { Accept: "text/plain" },
+          });
+          if (!response.ok) return;
+          const visitorIP = (await response.text()).trim();
+          if ((matchesFamily(visitorIP, "4") || matchesFamily(visitorIP, "6")) && visitorIP !== ip) {
+            showMyIP.classList.toggle("hidden", false);
+          }
+        } catch {
+          // Keep the link hidden when the visitor's address cannot be confirmed.
+        }
+      }
+      updateReturnLink();
+    }
     // Family-button navigation marks the visitor's detected address. Manual lookups do not.
     if (currentURL.searchParams.has("ip") && !["4", "6"].includes(activeFamily)) return;
     buttons.forEach((button) => {

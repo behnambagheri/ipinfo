@@ -19,9 +19,13 @@ function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Une
   elements['ip-address'].dataset.ip = ip;
   elements['family-controls'].classes.add('hidden');
   elements['family-controls'].querySelectorAll = () => buttons;
+  if (new URL(path, 'https://ip.bea.sh').searchParams.has('ip')) {
+    elements['show-my-ip'] = element();
+    elements['show-my-ip'].classes.add('hidden');
+  }
   const navigations = [];
   const document = { getElementById: id => elements[id], createTextNode: textContent => ({ textContent }), createElement: tagName => ({ tagName, textContent: '' }) };
-  runInNewContext(script, { document, window: { location: { href: `https://ip.bea.sh${path}`, assign: value => navigations.push(value) } }, URL, AbortController, setTimeout, clearTimeout, fetch: fetcher });
+  runInNewContext(script, { document, window: { location: { href: `https://ip.bea.sh${path}`, assign: value => navigations.push(value) } }, URL, AbortController, AbortSignal, setTimeout, clearTimeout, fetch: fetcher });
   return { elements, buttons, navigations, click: family => buttons.find(button => button.dataset.ipFamily === family).listeners.click() };
 }
 test('Auto preserves the default without detection requests and clears a visitor family selection', async () => {
@@ -46,6 +50,33 @@ test('invalid family markers cannot turn an explicit lookup into a visitor famil
     const browser = page('1.1.1.1', `/?ip=1.1.1.1&family=${marker}`);
     assert.equal(browser.elements['family-controls'].classes.has('hidden'), true);
     assert.equal(browser.buttons.every(button => !button.listeners.click), true);
+  }
+});
+test('Show my IP appears only when a manual lookup differs from the connection IP', async () => {
+  for (const visitorIP of ['1.1.1.1', '8.8.8.8']) {
+    const browser = page('1.1.1.1', '/?ip=1.1.1.1', async (url, options) => {
+      assert.equal(url, 'https://ip.bea.sh/ip');
+      assert.equal(options.cache, 'no-store');
+      assert.equal(options.redirect, 'error');
+      return new Response(visitorIP + '\n');
+    });
+    await new Promise(setImmediate);
+    assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), visitorIP === '1.1.1.1');
+    assert.equal(browser.elements['family-controls'].classes.has('hidden'), true);
+  }
+});
+test('Show my IP stays hidden during a visitor family selection without a connection check', () => {
+  let requests = 0;
+  const browser = page('2606:4700:4700::1111', '/?ip=2606:4700:4700::1111&family=6', () => { requests++; });
+  assert.equal(requests, 0);
+  assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), true);
+  assert.equal(browser.elements['family-controls'].classes.has('flex'), true);
+});
+test('an unavailable or invalid connection response does not reveal Show my IP', async () => {
+  for (const fetcher of [async () => { throw new Error('Offline'); }, async () => new Response('Unavailable', { status: 503 }), async () => new Response('Not an IP')]) {
+    const browser = page('1.1.1.1', '/?ip=1.1.1.1', fetcher);
+    await new Promise(setImmediate);
+    assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), true);
   }
 });
 test('IPv4 detection uses the browser-only IPv4 endpoint and loads the detected address on this site', async () => {
