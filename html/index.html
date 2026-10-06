@@ -39,15 +39,7 @@
         </div>
       </nav>
     </header>
-    <main class="mx-auto max-w-6xl space-y-8 px-4 py-8 sm:px-6 sm:py-12">
-      <section aria-labelledby="page-title" class="grid gap-6 pb-2 md:grid-cols-[1fr_auto] md:items-end">
-        <div>
-          <p class="mb-3 text-xs font-semibold tracking-[0.18em] text-primary uppercase">BEA / NETWORK TOOLS</p>
-          <h1 id="page-title" class="text-4xl font-bold tracking-tight sm:text-6xl">Your connection.<br />Clearly identified.</h1>
-          <p class="mt-3 max-w-xl text-base leading-relaxed text-base-content/65">Explore your public IP address, network provider, and approximate location. Get the same information through a simple API.</p>
-        </div>
-        <span class="badge badge-outline border-base-300 text-base-content/65">IPv4 &amp; IPv6 supported</span>
-      </section>
+    <main class="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <section aria-labelledby="ip-title" class="card card-border bg-base-100 shadow-sm">
         <div class="card-body gap-5 p-5 sm:p-8">
           <div id="family-controls" class="hidden flex-col gap-2">
@@ -63,7 +55,7 @@
           </div>
           <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div class="min-w-0 flex-1">
-              <h2 id="ip-title" class="text-sm text-base-content/60">{{ if .ExplicitLookup }}IP address lookup{{ else }}Your public IP address{{ end }}</h2>
+              <h1 id="ip-title" class="text-sm text-base-content/60">{{ if .ExplicitLookup }}IP address lookup{{ else }}Your public IP address{{ end }}</h1>
               <p id="ip-address" data-ip="{{ .IP }}" dir="ltr" class="mt-2 max-w-full wrap-anywhere font-mono text-3xl font-semibold tracking-tight sm:text-5xl">{{ .IP }}</p>
             </div>
             <div class="flex shrink-0 flex-wrap items-center gap-3">
