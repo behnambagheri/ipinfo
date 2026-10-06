@@ -61,14 +61,27 @@ test('IPv4 detection uses the browser-only IPv4 endpoint and loads the detected 
   await browser.click('4');
   assert.equal(browser.navigations[0], 'https://ip.bea.sh/?ip=8.8.4.4&family=4');
 });
-test('the already-observed visitor family is reused without relying on an external service', async () => {
-  const ip = '2a05:d016:132:9300:ee44:7663:fbeb:cfa8';
-  const browser = page(ip);
-  await browser.click('6');
-  const target = new URL(browser.navigations[0]);
-  assert.equal(target.searchParams.get('ip'), ip);
-  assert.equal(target.searchParams.get('family'), '6');
-});
+for (const [family, ip] of [['4', '8.8.8.8'], ['6', '2a05:d016:132:9300:ee44:7663:fbeb:cfa8']]) {
+  test(`clicking IPv${family} when Auto already has IPv${family} makes no request, navigation, or UI change`, async () => {
+    let requests = 0;
+    const browser = page(ip, '/', () => { requests++; throw new Error('Must not fetch'); });
+    const before = JSON.stringify({
+      status: browser.elements['family-status'].textContent,
+      title: browser.elements['ip-title'].textContent,
+      controls: browser.elements['family-controls'].attributes,
+      buttons: browser.buttons.map(button => ({ attributes: button.attributes, disabled: button.disabled })),
+    });
+    await browser.click(family);
+    assert.equal(requests, 0);
+    assert.equal(browser.navigations.length, 0);
+    assert.equal(JSON.stringify({
+      status: browser.elements['family-status'].textContent,
+      title: browser.elements['ip-title'].textContent,
+      controls: browser.elements['family-controls'].attributes,
+      buttons: browser.buttons.map(button => ({ attributes: button.attributes, disabled: button.disabled })),
+    }), before);
+  });
+}
 test('IPv6 preserves the full address and wraps at hextet boundaries', async () => {
   const ip = '2a05:d016:132:9300:ee44:7663:fbeb:cfa8';
   const browser = page(ip, `/?ip=${ip}&family=6`, async url => {
