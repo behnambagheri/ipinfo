@@ -60,7 +60,7 @@ export async function handleRequest(request, env = {}, context = {}, fetcher = f
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...securityHeaders, 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS', 'Access-Control-Allow-Headers': 'Accept' } });
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
-  if (url.pathname === '/healthz') return json({ status: 'ok' }, 200, head);
+  if (url.pathname === '/healthz') return json({ status: 'ok', revision: env.BUILD_REVISION }, 200, head);
   if (url.pathname === '/favicon.ico') return new Response(null, { status: 204, headers: securityHeaders });
   if (url.pathname.startsWith('/port/')) return json({ error: 'Port testing is available only in the self-hosted container.' }, 501, head);
   if (!['/', '/json', '/coordinates'].includes(url.pathname) && !fields.has(url.pathname)) return json({ error: 'Not found' }, 404, head);

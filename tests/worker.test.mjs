@@ -87,3 +87,10 @@ test('unsupported endpoints, methods, HEAD, and unavailable client IP are explic
   assert.equal((await handleRequest(new Request('https://ip.bea.sh/json'))).status, 503);
   assert.equal((await handleRequest(request('/healthz'))).status, 200);
 });
+test('deployment health identifies the running revision without IP metadata or upstream requests', async () => {
+  const revision = 'a'.repeat(40);
+  const result = await handleRequest(new Request('https://ip.bea.sh/healthz'), { BUILD_REVISION: revision }, {}, () => { throw new Error('Must not fetch'); });
+  assert.deepEqual(await result.json(), { status: 'ok', revision });
+  assert.equal(result.headers.get('cache-control'), 'no-store');
+  assert.equal(await (await handleRequest(request('/healthz', {}, 'HEAD'), { BUILD_REVISION: revision })).text(), '');
+});

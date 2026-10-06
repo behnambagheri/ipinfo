@@ -1,7 +1,7 @@
 # IP Info — bea.sh
 
-An IP and network diagnostic service by [Behnam Bagheri](https://bea.sh), with a
-responsive daisyUI 5 / Tailwind CSS 4 interface. The BB identity, blue accents,
+An IP and network diagnostic service for [bea.sh](https://bea.sh), with a
+responsive daisyUI 5 / Tailwind CSS 4 interface. The blue accents,
 background grid, and system/light/dark themes follow [bea.sh](https://bea.sh).
 
 The HTML, query builder, copy actions, usage dialog, and OpenStreetMap view are
@@ -79,12 +79,21 @@ Generated CSS and bundles are ignored by Git.
 Workers.dev and preview URLs are disabled. Worker observability is disabled
 to avoid retaining visitor requests in application logs.
 
-Build with `npm run build`. Deploy `dist/worker.mjs` as an ES module named
-`bea-ipinfo` through Cloudflare MCP, or use the official Wrangler CLI:
+Every successful push to `main` automatically deploys the `bea-ipinfo` Worker
+to `https://ip.bea.sh` through GitHub Actions after validation and container
+smoke tests pass. Manual workflow runs on `main` deploy too. Pull requests and
+version tags do not deploy the production Worker.
+
+The repository needs encrypted Actions secrets `CLOUDFLARE_API_TOKEN` and
+`CLOUDFLARE_ACCOUNT_ID`. The workflow uses the official Cloudflare Wrangler
+action and checks `/healthz` until its `revision` matches the pushed commit,
+so a successful deployment confirms the new code is serving requests.
+
+For a manual deployment through the official Wrangler CLI:
 
 ```sh
 npm run build
-npx wrangler deploy
+npx wrangler@4.148.0 deploy --var BUILD_REVISION:$(git rev-parse HEAD)
 ```
 
 The deploying credential needs account **Workers Scripts: Edit** and zone
