@@ -7,7 +7,7 @@ const script = (await readFile(new URL('../html/network.html', import.meta.url),
 function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Unexpected background request'); }) {
   function element(dataset = {}) {
     const classes = new Set();
-    return { dataset, textContent: '', disabled: false, attributes: {}, listeners: {},
+    return { dataset, classes, textContent: '', disabled: false, attributes: {}, listeners: {},
       classList: { replace: (a, b) => { classes.delete(a); classes.add(b); }, toggle: (name, active) => active ? classes.add(name) : classes.delete(name) },
       setAttribute(name, value) { this.attributes[name] = value; },
       addEventListener(name, listener) { this.listeners[name] = listener; },
@@ -17,18 +17,36 @@ function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Une
   const buttons = ['auto', '4', '6'].map(ipFamily => element({ ipFamily }));
   const elements = Object.fromEntries(['ip-address', 'ip-title', 'family-controls', 'family-status'].map(id => [id, element()]));
   elements['ip-address'].dataset.ip = ip;
+  elements['family-controls'].classes.add('hidden');
   elements['family-controls'].querySelectorAll = () => buttons;
   const navigations = [];
   const document = { getElementById: id => elements[id], createTextNode: textContent => ({ textContent }), createElement: tagName => ({ tagName, textContent: '' }) };
   runInNewContext(script, { document, window: { location: { href: `https://ip.bea.sh${path}`, assign: value => navigations.push(value) } }, URL, AbortController, setTimeout, clearTimeout, fetch: fetcher });
   return { elements, buttons, navigations, click: family => buttons.find(button => button.dataset.ipFamily === family).listeners.click() };
 }
-test('Auto preserves the default without detection requests and clears an explicit lookup when selected', async () => {
+test('Auto preserves the default without detection requests and clears a visitor family selection', async () => {
   const initial = page();
   assert.equal(initial.buttons[0].attributes['aria-pressed'], 'true');
   const lookup = page('1.1.1.1', '/?ip=1.1.1.1&family=4');
   await lookup.click('auto');
   assert.equal(lookup.navigations[0], 'https://ip.bea.sh/');
+});
+test('manual IPv4 and IPv6 lookups hide the selector without changing address rendering', () => {
+  for (const ip of ['8.8.8.8', '2606:4700:4700::1111']) {
+    const browser = page(ip, `/?ip=${ip}`);
+    assert.equal(browser.elements['family-controls'].classes.has('hidden'), true);
+    assert.equal(browser.elements['family-controls'].classes.has('flex'), false);
+    assert.equal(browser.buttons.every(button => !button.listeners.click), true);
+    assert.equal(browser.elements['ip-title'].textContent, '');
+    if (ip.includes(':')) assert.equal(browser.elements['ip-address'].textContent, ip);
+  }
+});
+test('invalid family markers cannot turn an explicit lookup into a visitor family selection', () => {
+  for (const marker of ['auto', 'invalid', '6']) {
+    const browser = page('1.1.1.1', `/?ip=1.1.1.1&family=${marker}`);
+    assert.equal(browser.elements['family-controls'].classes.has('hidden'), true);
+    assert.equal(browser.buttons.every(button => !button.listeners.click), true);
+  }
 });
 test('IPv4 detection uses the browser-only IPv4 endpoint and loads the detected address on this site', async () => {
   let called = false;

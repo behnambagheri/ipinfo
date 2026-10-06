@@ -23,6 +23,8 @@
       ? ipv4.test(value) && value.split(".").every((part) => Number(part) <= 255)
       : ipv6.test(value) && value.includes(":"));
     const activeFamily = ["4", "6"].includes(selected) && matchesFamily(ip, selected) ? selected : selected === "auto" ? "auto" : null;
+    // Family-button navigation marks the visitor's detected address. Manual lookups do not.
+    if (currentURL.searchParams.has("ip") && !["4", "6"].includes(activeFamily)) return;
     buttons.forEach((button) => {
       const active = button.dataset.ipFamily === activeFamily;
       button.setAttribute("aria-pressed", String(active));
