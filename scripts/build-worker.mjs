@@ -19,7 +19,7 @@ function condition(text) {
   if (parts[0] === 'or') return `(${parts.slice(1).map(field).join(' || ')})`;
   return field(text);
 }
-const source = (await inline('index.html')).replaceAll('echoip and GeoLite2', 'Cloudflare and IPWHOIS').replaceAll("Port checks test the connection's IP address.", 'Custom lookups use IPWHOIS.').replace('Look up another IP address</label>', 'Look up another IP address <span class="font-normal text-base-content/60">(via IPWHOIS)</span></label>');
+const source = (await inline('index.html')).replace("<p class=\"text-xs\">GeoLite2 data created by <a href=\"https://www.maxmind.com\" class=\"underline\">MaxMind</a>.</p>", '').replaceAll('echoip and GeoLite2', 'Cloudflare and IPWHOIS').replaceAll("Port checks test the connection's IP address.", 'Custom lookups use IPWHOIS.').replace('Look up another IP address</label>', 'Look up another IP address <span class="font-normal text-base-content/60">(via IPWHOIS)</span></label>');
 const root = [];
 const stack = [{ children: root }];
 let cursor = 0;

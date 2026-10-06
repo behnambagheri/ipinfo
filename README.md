@@ -114,8 +114,10 @@ GeoLite2 ASN, City, and Country databases come from one resolved release of
 [rabuchaim/geolite2mirror](https://github.com/rabuchaim/geolite2mirror).
 Every download must match its published SHA-256 digest. Rebuild with
 `--no-cache` to refresh the database snapshot. This product includes GeoLite2
-data created by [MaxMind](https://www.maxmind.com), available under
-[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/).
+data created by [MaxMind](https://www.maxmind.com), subject to the
+[GeoLite End User License Agreement](https://www.maxmind.com/en/geolite/eula),
+which incorporates CC BY-SA 4.0. Users and redistributors must follow its
+attribution and database update/removal requirements.
 
 | Environment variable | Default |
 | --- | --- |

@@ -3,7 +3,9 @@
 The container builds and distributes echoip from the revision pinned in the
 Dockerfile. Its BSD 3-Clause license is reproduced below. UI dependencies
 retain their license metadata in npm packages. GeoLite2 data is created by
-MaxMind and is distributed under CC BY-SA 4.0; see the README for attribution.
+MaxMind and is subject to the GeoLite End User License Agreement
+(https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.
+See the README for attribution and update requirements.
 OpenStreetMap embeds include their own map attribution.
 
 ## echoip
