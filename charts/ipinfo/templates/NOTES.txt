@@ -1,0 +1,8 @@
+IP Info is running as {{ include "ipinfo.fullname" . }}.
+
+For local access:
+  kubectl --namespace {{ .Release.Namespace }} port-forward service/{{ include "ipinfo.fullname" . }} 8080:{{ .Values.service.port }}
+  curl http://127.0.0.1:8080/json
+
+Configure trustedHeaders only when a trusted ingress or proxy overwrites that header.
+Port-forwarding reports the proxy connection address.

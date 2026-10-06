@@ -1,0 +1,87 @@
+<dialog id="usage-dialog" aria-labelledby="usage-title" aria-describedby="usage-intro" class="modal">
+  <div class="modal-box max-h-[85dvh] w-full max-w-3xl overflow-y-auto">
+    <div class="mb-3 flex items-center justify-between gap-4">
+      <h2 id="usage-title" class="text-2xl font-semibold">Usage</h2>
+      <form method="dialog">
+        <button type="submit" aria-label="Close usage" class="btn btn-ghost btn-sm btn-square">
+          <svg aria-hidden="true" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="m6 6 12 12M6 18 18 6" /></svg>
+        </button>
+      </form>
+    </div>
+    <p id="usage-intro" class="mb-6 text-sm leading-relaxed text-base-content/65">Commands use this service's address. Responses below are illustrative; your results depend on the IP address being looked up.</p>
+    <div class="space-y-6">
+      <section aria-labelledby="usage-ip-title" class="space-y-3">
+        <h3 id="usage-ip-title" class="text-lg font-semibold">Just the IP address</h3>
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl '<span data-usage-origin>{{ .Host }}</span>'
+127.0.0.1
+
+$ http '<span data-usage-origin>{{ .Host }}</span>'
+127.0.0.1
+
+$ wget -qO- '<span data-usage-origin>{{ .Host }}</span>'
+127.0.0.1
+
+$ fetch -qo- '<span data-usage-origin>{{ .Host }}</span>'
+127.0.0.1
+
+$ bat -print=b '<span data-usage-origin>{{ .Host }}</span>/ip'
+127.0.0.1</code></pre>
+      </section>
+      <section aria-labelledby="usage-location-title" class="space-y-3">
+        <h3 id="usage-location-title" class="text-lg font-semibold">Country, city, and network lookup</h3>
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl '<span data-usage-origin>{{ .Host }}</span>/country'
+Elbonia
+
+$ curl '<span data-usage-origin>{{ .Host }}</span>/country-iso'
+EB
+
+$ curl '<span data-usage-origin>{{ .Host }}</span>/city'
+Bornyasherk
+
+$ curl '<span data-usage-origin>{{ .Host }}</span>/asn'
+AS31337
+
+$ curl '<span data-usage-origin>{{ .Host }}</span>/asn-org'
+Dilbert Technologies</code></pre>
+      </section>
+      <section aria-labelledby="usage-json-title" class="space-y-3">
+        <h3 id="usage-json-title" class="text-lg font-semibold">As JSON</h3>
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl -H 'Accept: application/json' '<span data-usage-origin>{{ .Host }}</span>'
+# Or: curl '<span data-usage-origin>{{ .Host }}</span>/json'
+{
+  "city": "Bornyasherk",
+  "country": "Elbonia",
+  "country_iso": "EB",
+  "ip": "127.0.0.1",
+  "ip_decimal": 2130706433,
+  "asn": "AS31337",
+  "asn_org": "Dilbert Technologies"
+}</code></pre>
+      </section>
+      <section aria-labelledby="usage-port-title" class="space-y-3">
+        <h3 id="usage-port-title" class="text-lg font-semibold">Port testing</h3>
+        {{ if .Port }}
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl '<span data-usage-origin>{{ .Host }}</span>/port/80'
+{
+  "ip": "127.0.0.1",
+  "port": 80,
+  "reachable": false,
+  "status": "refused"
+}</code></pre>
+        {{ else }}
+        <p class="text-sm text-base-content/65">Port testing is disabled on this service.</p>
+        {{ end }}
+      </section>
+      <section aria-labelledby="usage-version-title" class="space-y-3">
+        <h3 id="usage-version-title" class="text-lg font-semibold">IPv4 and IPv6</h3>
+        <p class="text-sm leading-relaxed text-base-content/65">Pass the appropriate flag to your client to select IPv4 or IPv6. With curl, use <code>-4</code> for IPv4 and <code>-6</code> for IPv6.</p>
+        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl -4 '<span data-usage-origin>{{ .Host }}</span>'
+$ curl -6 '<span data-usage-origin>{{ .Host }}</span>'</code></pre>
+      </section>
+    </div>
+    <div class="modal-action">
+      <form method="dialog"><button type="submit" class="btn">Close</button></form>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button type="submit" aria-label="Close usage by clicking outside">Close</button></form>
+</dialog>

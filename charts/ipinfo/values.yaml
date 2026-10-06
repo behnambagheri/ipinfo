@@ -1,0 +1,38 @@
+replicaCount: 2
+image:
+  repository: ghcr.io/behnambagheri/ipinfo
+  tag: latest
+  digest: ""
+  pullPolicy: Always
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+service:
+  type: ClusterIP
+  port: 80
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: ipinfo.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+# Empty by default: only trust headers overwritten by your own ingress/proxy.
+trustedHeaders: ""
+cacheSize: 0
+portLookup: false
+reverseLookup: true
+resources:
+  requests:
+    cpu: 50m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

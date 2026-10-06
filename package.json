@@ -1,0 +1,19 @@
+{
+  "name": "bea-ipinfo",
+  "private": true,
+  "scripts": {
+    "build:css": "node scripts/embed-styles.mjs",
+    "build": "npm run build:css && node scripts/build-worker.mjs",
+    "test": "node --test",
+    "dev": "npm run build && node scripts/preview.mjs"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.3.3",
+    "daisyui": "5.7.47",
+    "esbuild": "0.28.2",
+    "postcss": "8.5.29",
+    "tailwindcss": "4.3.3"
+  },
+  "version": "1.0.0",
+  "description": "IP and network diagnostics for bea.sh"
+}

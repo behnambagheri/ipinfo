@@ -1,0 +1,12 @@
+apiVersion: v2
+name: ipinfo
+description: IP and network diagnostics with bundled GeoLite2 databases and a daisyUI interface
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+home: https://ip.bea.sh
+sources:
+  - https://github.com/behnambagheri/ipinfo
+maintainers:
+  - name: Behnam Bagheri
+    url: https://bea.sh

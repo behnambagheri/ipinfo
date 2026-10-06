@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "bea-ipinfo",
+  "main": "dist/worker.mjs",
+  "account_id": "65a8188637073a50148b1e6e59e1c1a9",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [{ "pattern": "ip.bea.sh", "custom_domain": true }],
+  "observability": { "enabled": false }
+}

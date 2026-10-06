@@ -1,0 +1,138 @@
+<script>
+  (() => {
+    "use strict";
+    const systemTheme = matchMedia("(prefers-color-scheme: dark)");
+    const themeButtons = document.querySelectorAll("button[data-theme-preference]");
+    let themePreference = document.documentElement.dataset.themePreference || "system";
+
+    function applyTheme() {
+      const dark = themePreference === "dark" || (themePreference === "system" && systemTheme.matches);
+      document.documentElement.dataset.theme = dark ? "bea-dark" : "bea";
+      document.documentElement.dataset.themePreference = themePreference;
+      themeButtons.forEach((button) => {
+        const selected = button.dataset.themePreference === themePreference;
+        button.setAttribute("aria-pressed", String(selected));
+        button.classList.toggle("btn-active", selected);
+      });
+    }
+
+    themeButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        themePreference = button.dataset.themePreference;
+        try {
+          localStorage.setItem("ipinfo-theme", themePreference);
+        } catch {
+          // The theme still works for this page when storage is unavailable.
+        }
+        applyTheme();
+      });
+    });
+    systemTheme.addEventListener("change", () => {
+      if (themePreference === "system") applyTheme();
+    });
+    applyTheme();
+
+    document.querySelectorAll("[data-usage-origin]").forEach((element) => {
+      element.textContent = window.location.origin.replaceAll("'", "%27");
+    });
+    document.getElementById("open-usage").addEventListener("click", () => {
+      document.getElementById("usage-dialog").showModal();
+    });
+
+    const data = JSON.parse({{ .JSON }});
+    const endpoint = document.getElementById("endpoint");
+    const queryIP = document.getElementById("query-ip");
+    const port = document.getElementById("query-port");
+    const command = document.getElementById("command");
+    const output = document.getElementById("query-output");
+    const status = document.getElementById("query-status");
+    const runButton = document.getElementById("run-query");
+    let activeRequest;
+
+    function queryURL() {
+      const path = endpoint.value === "port" ? `/port/${port.value}` : `/${endpoint.value}`;
+      const url = new URL(path, window.location.origin);
+      if (endpoint.value !== "port" && queryIP?.value.trim()) {
+        url.searchParams.set("ip", queryIP.value.trim());
+      }
+      return url;
+    }
+
+    function updateQuery() {
+      if (activeRequest) {
+        activeRequest.abort();
+        activeRequest = undefined;
+        runButton.disabled = false;
+      }
+      const isPort = endpoint.value === "port";
+      document.getElementById("port-field").classList.toggle("hidden", !isPort);
+      document.getElementById("query-ip-field")?.classList.toggle("hidden", isPort);
+      port.disabled = !isPort;
+      command.textContent = `curl '${queryURL().href.replaceAll("'", "%27")}'`;
+      status.textContent = "Current address preview";
+      if (isPort) {
+        status.textContent = "Ready to test";
+        output.textContent = "Run the query to check whether this port is reachable.";
+      } else if (queryIP?.value.trim() && queryIP.value.trim() !== data.ip) {
+        status.textContent = "Ready to look up";
+        output.textContent = "Run the query to look up this IP address.";
+      } else if (endpoint.value === "json") {
+        output.textContent = JSON.stringify(data, null, 2);
+      } else if (endpoint.value === "coordinates") {
+        output.textContent = typeof data.latitude === "number" && typeof data.longitude === "number"
+          ? `${data.latitude},${data.longitude}` : "Location data is unavailable.";
+      } else {
+        const key = endpoint.value.replaceAll("-", "_");
+        output.textContent = String(data[key] ?? "Data is unavailable for this address.");
+      }
+    }
+
+    async function copyText(text, messageElement) {
+      try {
+        await navigator.clipboard.writeText(text);
+        messageElement.textContent = "Copied to clipboard";
+      } catch {
+        messageElement.textContent = "Select the text and copy it manually.";
+      }
+    }
+
+    document.getElementById("copy-ip").addEventListener("click", () => {
+      copyText(data.ip, document.getElementById("copy-status"));
+    });
+    document.getElementById("copy-command").addEventListener("click", () => {
+      copyText(command.textContent, status);
+    });
+    endpoint.addEventListener("change", updateQuery);
+    queryIP?.addEventListener("input", updateQuery);
+    port.addEventListener("input", updateQuery);
+
+    document.getElementById("query-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (activeRequest) activeRequest.abort();
+      const controller = new AbortController();
+      activeRequest = controller;
+      const timeout = setTimeout(() => controller.abort(), 15000);
+      runButton.disabled = true;
+      status.textContent = "Loading…";
+      try {
+        const response = await fetch(queryURL(), { signal: controller.signal });
+        const text = await response.text();
+        if (controller.signal.aborted) return;
+        output.textContent = text;
+        status.textContent = response.ok ? `HTTP ${response.status}` : `Query failed · HTTP ${response.status}`;
+      } catch (error) {
+        if (activeRequest === controller) {
+          status.textContent = controller.signal.aborted ? "Query cancelled or timed out" : "Connection error";
+          output.textContent = controller.signal.aborted ? "Please try again." : error.message;
+        }
+      } finally {
+        clearTimeout(timeout);
+        if (activeRequest === controller) {
+          activeRequest = undefined;
+          runButton.disabled = false;
+        }
+      }
+    });
+    updateQuery();
+  })();
+</script>

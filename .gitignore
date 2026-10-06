@@ -1,0 +1,9 @@
+node_modules/
+dist/
+worker/render.generated.mjs
+html/styles.html
+.wrangler/
+.env*
+.dev.vars*
+.DS_Store
+*.tgz
