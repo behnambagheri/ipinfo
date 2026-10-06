@@ -1,10 +1,20 @@
 @import "tailwindcss" source(none);
 @source "../html/index.html";
 @source "../html/script.html";
+@source "../html/connection.html";
 @source "../html/usage.html";
 @plugin "daisyui" {
   themes: false;
   logs: false;
+}
+
+/* An IPv6 address needs room for up to eight hextets without dominating the card. */
+@layer utilities {
+  #ip-address[data-ip*="\:"] {
+    font-size: clamp(1.125rem, 2.5vw, 1.5rem);
+    line-height: 1.5;
+    letter-spacing: 0;
+  }
 }
 @plugin "daisyui/theme" {
   name: "bea";
