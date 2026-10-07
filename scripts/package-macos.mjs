@@ -19,11 +19,11 @@ const run = (command, args) => execFileSync(command, args, { stdio: 'inherit' })
 const sdk = execFileSync('xcrun', ['--show-sdk-path'], { encoding: 'utf8' }).trim();
 const swift = ['-O', '-sdk', sdk, '-module-cache-path', join(build, 'module-cache')];
 await writeFile(join(build, 'Version.swift'), `enum IPinfoVersion { static let value = ${JSON.stringify(version)} }\n`);
-run('swiftc', [...swift, 'macos/Diagnostics.swift', 'macos/CLI.swift', 'tests/macos/DiagnosticsTests.swift', '-o', join(build, 'tests')]);
+run('swiftc', [...swift, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'tests/macos/DiagnosticsTests.swift', '-o', join(build, 'tests')]);
 run(join(build, 'tests'), []);
 for (const arch of ['arm64', 'x86_64']) {
-  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Diagnostics.swift', 'macos/App.swift', '-o', join(build, `IPinfo-${arch}`)]);
-  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/Command.swift', join(build, 'Version.swift'), '-o', join(build, `ipinfo-${arch}`)]);
+  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/App.swift', '-o', join(build, `IPinfo-${arch}`)]);
+  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/Command.swift', join(build, 'Version.swift'), '-o', join(build, `ipinfo-${arch}`)]);
 }
 run('lipo', ['-create', join(build, 'IPinfo-arm64'), join(build, 'IPinfo-x86_64'), '-output', join(app, 'Contents/MacOS/IPinfo')]);
 run('lipo', ['-create', join(build, 'ipinfo-arm64'), join(build, 'ipinfo-x86_64'), '-output', join(app, 'Contents/Helpers/ipinfo')]);

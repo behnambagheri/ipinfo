@@ -13,13 +13,27 @@ struct CLIOptions {
     var json = false
     var help = false
     var version = false
+    var config = false
+    var source: String?
+    var timeout: Int?
 
     init(arguments: [String]) throws {
-        for argument in arguments {
+        var remaining = arguments[...]
+        if remaining.first == "config" { config = true; remaining = remaining.dropFirst() }
+        while let argument = remaining.first {
+            remaining = remaining.dropFirst()
             switch argument {
             case "--json": json = true
             case "--help", "-h": help = true
             case "--version": version = true
+            case "--source", "--timeout":
+                guard let value = remaining.first else { throw CLIError.usage("\(argument) requires a value.") }
+                remaining = remaining.dropFirst()
+                if argument == "--source" { source = value }
+                else {
+                    guard let number = Int(value), (1...30).contains(number) else { throw CLIError.usage("Timeout must be a whole number from 1 to 30 seconds.") }
+                    timeout = number
+                }
             default:
                 guard !argument.hasPrefix("-") else { throw CLIError.usage("Unknown option: \(argument)") }
                 guard ip == nil else { throw CLIError.usage("Provide at most one IP address.") }
@@ -29,12 +43,15 @@ struct CLIOptions {
                 ip = normalized
             }
         }
+        _ = try Settings(source: source ?? "auto", timeout: timeout ?? 5).validated()
+        if config && (ip != nil || json || help || version) { throw CLIError.usage("Use config with only --source and --timeout.") }
     }
 
     static let usage = """
-    Usage: ipinfo [--json] [IP_ADDRESS]
+    Usage: ipinfo [--json] [--source SOURCE] [--timeout SECONDS] [IP_ADDRESS]
+           ipinfo config [--source SOURCE] [--timeout SECONDS]
 
-    Checks ip.bea.sh and ip.behnam.pro concurrently.
+    Auto checks ip.bea.sh and ip.behnam.pro concurrently.
     Matching results show only ip.bea.sh; differing results show both.
     With no address, each service detects your current public IP.
 
@@ -44,8 +61,15 @@ struct CLIOptions {
       ipinfo --json 8.8.8.8           Print JSON for scripts
       ipinfo --help                   Show this help
       ipinfo --version                Show the installed version
+      ipinfo --source ip.bea.sh        Use one service for this lookup
+      ipinfo config --source auto     Save source for GUI and CLI
+      ipinfo config --timeout 5       Save timeout (1–30 seconds)
 
-    Exit codes: 0 both checks succeeded, 1 a check failed, 2 invalid arguments.
+    Sources: auto (default), ip.bea.sh, ip.behnam.pro.
+    Default timeout: 5 seconds per service; Auto checks run concurrently.
+    With no options, ipinfo config prints the current shared settings.
+
+    Exit codes: 0 all selected checks succeeded, 1 a check failed, 2 invalid arguments.
     """
 }
 

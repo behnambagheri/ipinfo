@@ -19,9 +19,77 @@ wrap between hextets; copying still includes the complete address.
 
 ## Deployment options
 
-### macOS app / Homebrew
+### Desktop apps: macOS, Linux, and Windows
 
-The native macOS app checks both `https://ip.bea.sh/json` and
+Every desktop download contains both the graphical app and a standalone CLI.
+Linux and Windows have one archive per CPU architecture (AMD64 and ARM64), with
+no separate CLI-only edition. The CLI does not load Electron or need a graphical
+session, so the same package works on a server. No Node.js installation or local
+GeoLite2 database is required.
+
+| System | Downloads | Graphical launcher | CLI |
+| --- | --- | --- | --- |
+| macOS 13+ | Universal DMG or ZIP; Homebrew cask | IPinfo.app | `ipinfo` |
+| Linux, glibc | AMD64 or ARM64 `.tar.gz` | `IPinfo-GUI` | `ipinfo` |
+| Windows 10+ | AMD64 or ARM64 `.zip` | `IPinfo-GUI.exe` | `ipinfo.exe` |
+
+Extract the whole Linux/Windows archive and keep its files together. Run the CLI
+directly from the extracted folder, or use the included user installer:
+
+```sh
+# Linux: no administrator permissions required.
+./install.sh
+~/.local/bin/ipinfo
+~/.local/bin/ipinfo 1.2.3.4
+```
+
+```powershell
+# Windows: run in PowerShell; no administrator permissions required.
+.\install.ps1
+# Restart the terminal after installation, then:
+ipinfo
+ipinfo 1.2.3.4
+```
+
+The Linux installer puts the app in `~/.local/share/IPinfo`, adds a desktop entry,
+and links `ipinfo` and `ipinfo-gui` in `~/.local/bin`; add that directory to PATH
+if necessary. It honors `XDG_DATA_HOME`. The Windows installer puts the app in
+`%LOCALAPPDATA%\Programs\IPinfo`, adds it to the user PATH, and creates a Start
+menu shortcut. Portable use needs no installation. Windows executables are
+currently unsigned. Linux graphical mode needs a desktop, GTK 3/NSS/audio
+libraries, and Chromium sandbox support; a current Ubuntu 22.04+ or equivalent
+distribution is recommended. Alpine/musl is unsupported. Servers can run the
+standalone CLI without those graphical libraries.
+
+#### Source and timeout settings
+
+The default source is **Auto**. It contacts both endpoints concurrently, with
+a **five-second hard deadline per service**. A timeout never counts as matching;
+the working result remains visible alongside a short error for the unavailable
+service. If both fail, both errors are shown. Results from different addresses
+or networks are never silently merged.
+
+Choose **Auto**, **ip.bea.sh only**, or **ip.behnam.pro only** in the GUI and save
+settings. Single-source mode contacts only the selected endpoint. The GUI and
+CLI share the same source and timeout preferences. The timeout can be any whole
+number from 1 to 30 seconds.
+
+```sh
+ipinfo config --source ip.bea.sh       # Save one source for both interfaces.
+ipinfo config --source ip.behnam.pro
+ipinfo config --source auto --timeout 5
+ipinfo config                        # Print the saved preferences.
+ipinfo --source ip.bea.sh --timeout 2  # Override this lookup only.
+```
+
+Preferences are stored at `~/.config/ipinfo/settings.json` on Linux (or under
+`XDG_CONFIG_HOME`), `%APPDATA%\IPinfo\settings.json` on Windows, and
+`~/Library/Application Support/IPinfo/settings.json` on macOS. IP results are
+not saved. Reopen the GUI after changing settings from another process.
+
+#### macOS / Homebrew
+
+In Auto mode, the native macOS app checks both `https://ip.bea.sh/json` and
 `https://ip.behnam.pro/json` concurrently using the Mac's current network
 connection. It shows only `ip.bea.sh` when both diagnostic results match,
 and shows both services when they differ. If either check fails, both service
@@ -38,10 +106,10 @@ ipinfo --json 8.8.8.8               # Structured output for scripts.
 ipinfo --help
 ```
 
-Both current-IP and explicit-IP checks query the two sources. Matching results
+In Auto mode, both current-IP and explicit-IP checks query the two sources. Matching results
 print only `ip.bea.sh`; differences print both. A failed source appears with an
 error alongside the other result. JSON output is an object keyed by the displayed
-service names. Exit codes are `0` when both requests succeed, `1` if either fails,
+service names. Exit codes are `0` when all selected requests succeed, `1` if any fails,
 and `2` for invalid arguments. Invalid IP addresses are rejected before requests.
 The CLI does not open a window. If a shell function or alias already uses the
 name `ipinfo`, run `command ipinfo` or update that wrapper to forward arguments
@@ -107,8 +175,9 @@ DMG users can run `/Applications/IPinfo.app/Contents/Helpers/ipinfo` directly.
 The optional
 `MACOS_SIGNING_IDENTITY` and `MACOS_NOTARY_PROFILE` environment variables select
 Developer ID signing and a preconfigured `notarytool` keychain profile.
-The `macOS app` GitHub Actions workflow builds pull requests and publishes
-version-tagged releases. Tags must match the numeric `package.json` version.
+The `Desktop apps` GitHub Actions workflow builds pull requests and publishes
+version-tagged releases only after all five native packaging jobs pass. Tags
+must match the numeric `package.json` version.
 After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
 `Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
 
@@ -146,6 +215,34 @@ builds never receive these secrets. With no signing secrets configured, builds
 remain ad-hoc signed; a partially configured set fails rather than publishing
 a release with an ambiguous signing state. `distribution-status.json` records
 the actual release status, and notarized casks omit the first-launch caveat.
+
+#### Linux and Windows packaging
+
+```sh
+npm ci
+npm run test:desktop
+npm run package:desktop -- linux-x64
+npm run package:desktop -- linux-arm64
+npm run package:desktop -- win32-x64
+npm run package:desktop -- win32-arm64
+```
+
+Each target writes a combined archive and checksum under `dist/desktop/`.
+Packaging bundles the CLI as a Node.js single executable, verifies the downloaded
+runtime against its official SHA-256 checksum, and bundles the graphical app
+with Electron. The runtime versions are pinned in `scripts/package-desktop.mjs`.
+Cross-packaging is supported with snapshots and code caches disabled; release
+CI builds and tests on native Linux and Windows runners for both architectures.
+The GUI is sandboxed, loads local assets, and can request only the two fixed
+lookup services through a narrow preload interface. No remote website is loaded
+inside the app. Runtime and interface licenses ship in the archives.
+
+On a matching native system, run `npm run verify:desktop` to test the packaged CLI,
+saved preferences, and real GUI renderer behavior. Linux CI uses `xvfb-run -a`
+for graphical tests. The release job waits for macOS and all four Linux/Windows
+jobs, verifies their checksums, then uploads all archives with one combined
+`SHA256SUMS`. PR/manual builds create Actions artifacts without publishing a
+release; publishing requires a matching version tag.
 
 ### Hosted service
 

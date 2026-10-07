@@ -92,11 +92,12 @@ struct Diagnostic: Sendable {
 }
 
 enum CheckError: Error, LocalizedError {
-    case http(Int), invalidResponse
+    case http(Int), invalidResponse, timeout
     var errorDescription: String? {
         switch self {
         case .http(let code): return "The service returned HTTP \(code)."
         case .invalidResponse: return "The service returned an invalid IP lookup response."
+        case .timeout: return "The request timed out. Refresh to try again."
         }
     }
 }
@@ -106,12 +107,21 @@ struct ServiceResult: Sendable {
     let diagnostic: Diagnostic?
     let error: String?
 
-    static func fetch(_ endpoint: ServiceEndpoint, session: URLSession, ip: String? = nil) async -> ServiceResult {
+    static func fetch(_ endpoint: ServiceEndpoint, session: URLSession, ip: String? = nil, timeout: Int = 5) async -> ServiceResult {
         do {
-            var request = URLRequest(url: endpoint.lookupURL(ip: ip), cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
+            var request = URLRequest(url: endpoint.lookupURL(ip: ip), cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: Double(timeout))
             request.setValue("application/json", forHTTPHeaderField: "Accept")
             request.setValue("IPinfo-macOS", forHTTPHeaderField: "User-Agent")
-            let (data, response) = try await session.data(for: request)
+            let lookupRequest = request
+            let (data, response) = try await withThrowingTaskGroup(of: (Data, URLResponse).self) { group in
+                group.addTask { try await session.data(for: lookupRequest) }
+                group.addTask {
+                    try await Task.sleep(nanoseconds: UInt64(timeout) * 1_000_000_000)
+                    throw CheckError.timeout
+                }
+                defer { group.cancelAll() }
+                return try await group.next()!
+            }
             guard let http = response as? HTTPURLResponse else { throw CheckError.invalidResponse }
             guard http.statusCode == 200 else { throw CheckError.http(http.statusCode) }
             let diagnostic = try Diagnostic(data: data)
@@ -133,20 +143,26 @@ struct ServiceResult: Sendable {
 struct Comparison: Sendable {
     let primary: ServiceResult
     let secondary: ServiceResult
+    var singleSource = false
     var identical: Bool {
-        guard let first = primary.diagnostic, let second = secondary.diagnostic else { return false }
+        guard !singleSource, let first = primary.diagnostic, let second = secondary.diagnostic else { return false }
         return first.matches(second)
     }
-    var visible: [ServiceResult] { identical ? [primary] : [primary, secondary] }
+    var visible: [ServiceResult] { singleSource || identical ? [primary] : [primary, secondary] }
     var message: String {
+        if singleSource { return "Using \(primary.endpoint.host)." }
         if identical { return "Both services match. Showing ip.bea.sh." }
         if primary.diagnostic == nil || secondary.diagnostic == nil { return "Comparison incomplete. Both service statuses are shown." }
         return "The results differ. Both services are shown."
     }
 
-    static func check(session: URLSession = .shared, ip: String? = nil) async -> Comparison {
-        async let first = ServiceResult.fetch(.primary, session: session, ip: ip)
-        async let second = ServiceResult.fetch(.secondary, session: session, ip: ip)
+    static func check(session: URLSession = .shared, ip: String? = nil, settings: Settings = Settings()) async -> Comparison {
+        if settings.source != "auto" {
+            let result = await ServiceResult.fetch(ServiceEndpoint(host: settings.source), session: session, ip: ip, timeout: settings.timeout)
+            return Comparison(primary: result, secondary: result, singleSource: true)
+        }
+        async let first = ServiceResult.fetch(.primary, session: session, ip: ip, timeout: settings.timeout)
+        async let second = ServiceResult.fetch(.secondary, session: session, ip: ip, timeout: settings.timeout)
         return await Comparison(primary: first, secondary: second)
     }
 }

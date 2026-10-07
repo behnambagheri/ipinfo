@@ -8,10 +8,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var refreshButton: NSButton!
     private var results: NSStackView!
     private var checkTask: Task<Void, Never>?
+    private var sourceMenu: NSPopUpButton!
+    private var timeoutField: NSTextField!
+    private var settings = Settings()
     private let session: URLSession = {
         let config = URLSessionConfiguration.ephemeral
-        config.timeoutIntervalForRequest = 12
-        config.timeoutIntervalForResource = 15
+        config.timeoutIntervalForRequest = 30
+        config.timeoutIntervalForResource = 30
         config.urlCache = nil
         return URLSession(configuration: config)
     }()
@@ -36,6 +39,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         heading.alignment = .centerY
         status = label("Checking both services…", size: 13)
         status.textColor = .secondaryLabelColor
+        do { settings = try Settings.load() } catch { status.stringValue = "Could not read IPinfo settings. Choose and save new settings." }
+        sourceMenu = NSPopUpButton()
+        sourceMenu.addItems(withTitles: ["Auto · both services", "ip.bea.sh only", "ip.behnam.pro only"])
+        sourceMenu.selectItem(at: ["auto", "ip.bea.sh", "ip.behnam.pro"].firstIndex(of: settings.source) ?? 0)
+        timeoutField = NSTextField(string: String(settings.timeout))
+        timeoutField.widthAnchor.constraint(equalToConstant: 50).isActive = true
+        let save = NSButton(title: "Save settings", target: self, action: #selector(saveSettings))
+        save.bezelStyle = .rounded
+        let preferences = NSStackView(views: [label("Source", size: 13), sourceMenu, label("Timeout (seconds)", size: 13), timeoutField, save])
+        preferences.alignment = .centerY
+        preferences.spacing = 10
 
         results = NSStackView()
         results.orientation = .horizontal
@@ -44,7 +58,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         results.spacing = 18
         let footnote = label("Checks use your current network connection. Refresh after changing your VPN or proxy.", size: 12)
         footnote.textColor = .secondaryLabelColor
-        let stack = NSStackView(views: [heading, subtitle, status, results, footnote])
+        let stack = NSStackView(views: [heading, subtitle, preferences, status, results, footnote])
         stack.orientation = .vertical
         stack.alignment = .leading
         stack.spacing = 16
@@ -102,16 +116,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func refresh() {
         checkTask?.cancel()
-        status.stringValue = "Checking both services…"
+        status.stringValue = settings.source == "auto" ? "Checking both services…" : "Checking \(settings.source)…"
         refreshButton.isEnabled = false
         for view in results.arrangedSubviews { results.removeArrangedSubview(view); view.removeFromSuperview() }
         checkTask = Task {
-            let comparison = await Comparison.check(session: session)
+            let comparison = await Comparison.check(session: session, settings: settings)
             guard !Task.isCancelled else { return }
             status.stringValue = comparison.message + " Checked at " + Date().formatted(date: .omitted, time: .standard) + "."
             for result in comparison.visible { results.addArrangedSubview(panel(result)) }
             refreshButton.isEnabled = true
         }
+    }
+
+    @objc private func saveSettings() {
+        do {
+            guard let timeout = Int(timeoutField.stringValue) else { throw CLIError.usage("Timeout must be a whole number from 1 to 30 seconds.") }
+            let value = try Settings(source: ["auto", "ip.bea.sh", "ip.behnam.pro"][sourceMenu.indexOfSelectedItem], timeout: timeout).validated()
+            try value.save()
+            settings = value
+            refresh()
+        } catch { status.stringValue = error.localizedDescription }
     }
 
     private func panel(_ result: ServiceResult) -> NSView {
@@ -180,7 +204,7 @@ struct IPinfoApp {
     static func main() {
 if CommandLine.arguments.contains("--check") {
     Task {
-        let result = await Comparison.check()
+        let result = await Comparison.check(settings: (try? Settings.load()) ?? Settings())
         let json: [String: Any] = [
             "identical": result.identical,
             "displayed_services": result.visible.map { $0.endpoint.host },

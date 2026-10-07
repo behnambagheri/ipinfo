@@ -3,6 +3,12 @@
 The Worker and container run this project's shared IPinfo service. The container
 uses mmdb-lib (MIT) to read local MaxMind databases; its license is included below.
 UI and build dependencies retain their license metadata in npm packages.
+Linux and Windows desktop downloads bundle Electron and retain its LICENSE and
+LICENSES.chromium.html files. The standalone CLI bundles Node.js and retains
+its full LICENSE.node.txt, including notices for bundled dependencies. The
+graphical interface uses daisyUI and Tailwind CSS (MIT); their licenses are
+included in LICENSE.ui.txt in the desktop archive. Packaging dependencies are
+build tools and are not required on the user's machine.
 Synthetic MaxMind-DB test fixtures and their MIT license are in tests/fixtures/.
 GeoLite2 data is created by MaxMind and is subject to the GeoLite End User License
 Agreement (https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.

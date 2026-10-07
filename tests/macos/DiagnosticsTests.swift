@@ -3,9 +3,11 @@ import Foundation
 final class FixtureProtocol: URLProtocol, @unchecked Sendable {
     static var responses: [String: (Int, String)] = [:]
     static var expectedIP: String?
+    static var hangingHost: String?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
+        if request.url!.host == Self.hangingHost { return }
         guard let (status, body) = Self.responses[request.url!.host!] else {
             client?.urlProtocol(self, didFailWithError: URLError(.timedOut))
             return
@@ -44,7 +46,9 @@ struct DiagnosticsTests {
         expect(try CLIOptions(arguments: ["--json", "1.2.3.4"]).json)
         expect(try CLIOptions(arguments: ["2606:4700:4700:0:0:0:0:1111"]).ip == "2606:4700:4700::1111")
         expect(try CLIOptions(arguments: ["--help"]).help)
-        for arguments in [["bad"], ["--unknown"], ["1.2.3.4", "8.8.8.8"], ["1.2.3.4?x=1"], ["256.1.2.3"]] {
+        expect(try CLIOptions(arguments: ["config", "--source", "ip.behnam.pro", "--timeout", "3"]).config)
+        expect(try CLIOptions(arguments: ["--source", "ip.bea.sh"]).source == "ip.bea.sh")
+        for arguments in [["bad"], ["--unknown"], ["1.2.3.4", "8.8.8.8"], ["1.2.3.4?x=1"], ["256.1.2.3"], ["--source", "bad"], ["--timeout", "0"], ["--timeout", "31"], ["--timeout", "1.5"], ["--source"], ["config", "1.2.3.4"]] {
             do { _ = try CLIOptions(arguments: arguments); preconditionFailure("Accepted invalid arguments") }
             catch { /* Expected rejection before any requests. */ }
         }
@@ -80,6 +84,18 @@ struct DiagnosticsTests {
         ]
         let matching = await Comparison.check(session: session)
         expect(matching.identical && matching.visible.count == 1)
+        FixtureProtocol.hangingHost = "ip.bea.sh"
+        let selected = await Comparison.check(session: session, settings: Settings(source: "ip.behnam.pro", timeout: 1))
+        expect(selected.visible.count == 1 && selected.visible[0].endpoint.host == "ip.behnam.pro" && CLIOutput.exitCode(selected) == 0)
+        let start = Date()
+        let deadline = await Comparison.check(session: session, settings: Settings(timeout: 1))
+        expect(Date().timeIntervalSince(start) < 2 && deadline.primary.error!.contains("timed out") && deadline.secondary.diagnostic != nil)
+        FixtureProtocol.hangingHost = nil
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathComponent("settings.json")
+        try Settings(source: "ip.behnam.pro", timeout: 2).save(to: temporary)
+        let saved = try Settings.load(from: temporary)
+        expect(saved.source == "ip.behnam.pro" && saved.timeout == 2)
+        try FileManager.default.removeItem(at: temporary.deletingLastPathComponent())
         FixtureProtocol.responses["ip.behnam.pro"] = (200, #"{"ip":"1.1.1.1","country":"United States"}"#)
         let mismatching = await Comparison.check(session: session)
         expect(!mismatching.identical && mismatching.visible.count == 2)
@@ -108,6 +124,6 @@ struct DiagnosticsTests {
         FixtureProtocol.responses["ip.behnam.pro"] = (200, "<html>Error</html>")
         let malformed = await Comparison.check(session: session)
         expect(malformed.secondary.diagnostic == nil && malformed.visible.count == 2)
-        print("Passed macOS comparison and CLI tests: matching/different output, explicit IP requests, IPv6, invalid input, metadata, missing fields, and failures.")
+        print("Passed macOS comparison and CLI tests, including saved source settings and a hard request deadline.")
     }
 }
