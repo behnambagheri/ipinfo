@@ -19,6 +19,368 @@ wrap between hextets; copying still includes the complete address.
 
 ## Deployment options
 
+### Desktop apps: macOS, Linux, and Windows
+
+Every desktop download contains both the graphical app and a standalone CLI.
+Linux and Windows have one archive per CPU architecture (AMD64 and ARM64), with
+no separate CLI-only edition. The CLI does not load Electron or need a graphical
+session, so the same package works on a server. No Node.js installation or local
+GeoLite2 database is required.
+
+| System | Downloads | Graphical launcher | CLI |
+| --- | --- | --- | --- |
+| macOS 13+ | Universal DMG or ZIP; Homebrew cask | IPinfo.app | `ipinfo` |
+| Linux, glibc | AMD64 or ARM64 `.tar.gz`, `.deb`, `.rpm`, `.pkg.tar.zst` | `IPinfo-GUI` / `ipinfo-gui` | `ipinfo` |
+| Windows 10+ | AMD64 or ARM64 `.zip`; Scoop and WinGet manifests | `IPinfo-GUI.exe` / `ipinfo-gui` | `ipinfo.exe` |
+
+Extract the whole Linux/Windows archive and keep its files together. Run the CLI
+directly from the extracted folder, or use the included user installer:
+
+```sh
+# Linux: no administrator permissions required.
+./install.sh
+~/.local/bin/ipinfo
+~/.local/bin/ipinfo 1.2.3.4
+```
+
+```powershell
+# Windows: run in PowerShell; no administrator permissions required.
+.\install.ps1
+# Restart the terminal after installation, then:
+ipinfo
+ipinfo 1.2.3.4
+```
+
+The Linux installer puts the app in `~/.local/share/IPinfo`, adds a desktop entry,
+and links `ipinfo` and `ipinfo-gui` in `~/.local/bin`; add that directory to PATH
+if necessary. It honors `XDG_DATA_HOME`. The Windows installer puts the app in
+`%LOCALAPPDATA%\Programs\IPinfo`, adds it to the user PATH, and creates a Start
+menu shortcut. Portable use needs no installation. Windows executables are
+currently unsigned. Linux graphical mode needs a desktop, GTK 3/NSS/audio
+libraries, and Chromium sandbox support; a current Ubuntu 22.04+ or equivalent
+distribution is recommended. Alpine/musl is unsupported. Servers can run the
+standalone CLI without those graphical libraries.
+
+#### Linux package managers
+
+Releases also provide a combined **`bea-ipinfo`** native package for each Linux
+architecture. It contains both interfaces, installs the `ipinfo` and
+`ipinfo-gui` commands, and adds IPinfo to the desktop application menu.
+The distinct package name avoids confusing this application with other IPinfo
+clients. Settings remain in the user's configuration directory after upgrades
+and removal.
+
+Download the file matching your distribution and CPU from the release, verify
+it against `SHA256SUMS`, then run the matching command from its download folder:
+
+```sh
+# Debian / Ubuntu, AMD64:
+sudo apt install ./bea-ipinfo_1.2.0-1_amd64.deb
+# Debian / Ubuntu, ARM64:
+sudo apt install ./bea-ipinfo_1.2.0-1_arm64.deb
+
+# Rocky / RHEL / Fedora, AMD64:
+sudo dnf install ./bea-ipinfo-1.2.0-1.x86_64.rpm
+# Rocky / RHEL / Fedora, ARM64:
+sudo dnf install ./bea-ipinfo-1.2.0-1.aarch64.rpm
+
+# Arch Linux, AMD64:
+sudo pacman -U ./bea-ipinfo-1.2.0-1-x86_64.pkg.tar.zst
+# Arch Linux ARM, ARM64:
+sudo pacman -U ./bea-ipinfo-1.2.0-1-aarch64.pkg.tar.zst
+
+ipinfo
+ipinfo 1.2.3.4
+ipinfo-gui
+```
+
+Arch Linux officially supports x86_64; the ARM64 package targets Arch Linux ARM.
+Packages use glibc, so Alpine/musl is unsupported. The CLI requires glibc 2.28+
+and libstdc++; GUI libraries are recommended/optional dependencies. On servers,
+use `apt install --no-install-recommends ./bea-ipinfo_...deb` or
+`dnf install --setopt=install_weak_deps=False ./bea-ipinfo-...rpm` to avoid
+installing desktop libraries. To run the GUI on a minimal installation, install
+the package's recommended dependencies first. Native packages ship the Chromium
+sandbox helper owned by root with mode 4755; no `--no-sandbox` flag is needed.
+
+Remove the application with `sudo apt remove bea-ipinfo`,
+`sudo dnf remove bea-ipinfo`, or `sudo pacman -R bea-ipinfo`. Installing a newer
+downloaded package with the same installation command upgrades it.
+
+These commands install **downloaded release files**. This project currently has
+no public apt, dnf, or pacman repository and no AUR listing; commands such as
+`apt install bea-ipinfo` or `pacman -S bea-ipinfo` will require a published
+repository first. The prepared 1.2.0 artifacts become downloadable only after
+that release is published.
+
+#### Windows package managers
+
+Windows Package Manager (**WinGet**) is the Microsoft-supported option. Each
+release generates submission-ready manifests for **`BehnamBagheri.IPinfo`**, with
+native x64 and ARM64 ZIPs and the actual SHA-256 hashes of that release. WinGet
+installs the complete archive and exposes both `ipinfo` and `ipinfo-gui` commands.
+The entry must be submitted and accepted into Microsoft's registry before this
+public install command is available:
+
+```powershell
+# Available only after WinGet registry acceptance:
+winget install --id BehnamBagheri.IPinfo --exact
+winget upgrade --id BehnamBagheri.IPinfo --exact
+winget uninstall --id BehnamBagheri.IPinfo --exact
+```
+
+Releases also include a **Scoop** manifest, which needs no community registry
+submission. With Scoop already installed, install directly from the published
+manifest URL:
+
+```powershell
+# Available after the 1.2.0 release and its assets are published:
+scoop install https://github.com/behnambagheri/ipinfo/releases/download/v1.2.0/ipinfo.json
+ipinfo
+ipinfo 1.2.3.4
+ipinfo-gui
+# Or open IPinfo from the Start menu.
+scoop uninstall ipinfo
+```
+
+Scoop chooses the native architecture, verifies the ZIP checksum, installs both
+commands, and creates an IPinfo Start menu shortcut. For an upgrade before a
+maintained Scoop bucket exists, uninstall and install the next release's
+manifest URL; user settings are preserved. WinGet's portable installation has
+command aliases; use `ipinfo-gui` to open its graphical interface. Windows
+executables remain unsigned, so SmartScreen may require approval.
+
+See the official [WinGet manifest documentation](https://learn.microsoft.com/en-us/windows/package-manager/package/manifest)
+and [Scoop app-manifest documentation](https://github.com/ScoopInstaller/Scoop/wiki/App-Manifests).
+
+#### Source and timeout settings
+
+The default source is **Auto**. It contacts both endpoints concurrently, with
+a **five-second hard deadline per service**. A timeout never counts as matching;
+the working result remains visible alongside a short error for the unavailable
+service. If both fail, both errors are shown. Results from different addresses
+or networks are never silently merged.
+
+Choose **Auto**, **ip.bea.sh only**, or **ip.behnam.pro only** in the GUI and save
+settings. Single-source mode contacts only the selected endpoint. The GUI and
+CLI share the same source and timeout preferences. The timeout can be any whole
+number from 1 to 30 seconds.
+
+```sh
+ipinfo config --source ip.bea.sh       # Save one source for both interfaces.
+ipinfo config --source ip.behnam.pro
+ipinfo config --source auto --timeout 5
+ipinfo config                        # Print the saved preferences.
+ipinfo --source ip.bea.sh --timeout 2  # Override this lookup only.
+```
+
+Preferences are stored at `~/.config/ipinfo/settings.json` on Linux (or under
+`XDG_CONFIG_HOME`), `%APPDATA%\IPinfo\settings.json` on Windows, and
+`~/Library/Application Support/IPinfo/settings.json` on macOS. IP results are
+not saved. Reopen the GUI after changing settings from another process.
+
+#### macOS / Homebrew
+
+In Auto mode, the native macOS app checks both `https://ip.bea.sh/json` and
+`https://ip.behnam.pro/json` concurrently using the Mac's current network
+connection. It shows only `ip.bea.sh` when both diagnostic results match,
+and shows both services when they differ. If either check fails, both service
+statuses remain visible; a timeout or error never counts as an identical result.
+Refresh after changing a VPN or proxy. Each panel supports copying its IP and
+opening the corresponding website.
+The same cask also installs an `ipinfo` terminal command:
+
+```sh
+ipinfo                              # Check your public IP through both services.
+ipinfo 1.2.3.4                      # Look up a particular IPv4 address.
+ipinfo 2606:4700:4700::1111          # Look up an IPv6 address.
+ipinfo --json 8.8.8.8               # Structured output for scripts.
+ipinfo --help
+```
+
+In Auto mode, both current-IP and explicit-IP checks query the two sources. Matching results
+print only `ip.bea.sh`; differences print both. A failed source appears with an
+error alongside the other result. JSON output is an object keyed by the displayed
+service names. Exit codes are `0` when all selected requests succeed, `1` if any fails,
+and `2` for invalid arguments. Invalid IP addresses are rejected before requests.
+The CLI does not open a window. If a shell function or alias already uses the
+name `ipinfo`, run `command ipinfo` or update that wrapper to forward arguments
+to the installed executable.
+
+```sh
+brew install --cask behnambagheri/tap/ipinfo
+open -a IPinfo
+```
+
+Alternatively, add the tap first and use the short cask name:
+
+```sh
+brew tap behnambagheri/tap
+brew install --cask ipinfo
+```
+
+The tap is [behnambagheri/homebrew-tap](https://github.com/behnambagheri/homebrew-tap).
+This is a project-maintained cask, not a listing in the official Homebrew cask
+repository. Without adding the tap first, use the fully qualified install name.
+The unrelated `brew install ipinfo` formula is a different project.
+
+The universal app supports Apple Silicon and Intel Macs on macOS 13 or later.
+It requires no Node.js, Docker, local service, or local GeoLite2 databases.
+The app sends lookup requests only to the two named services and does not
+persist diagnostic results. Requests may be counted by each service's existing
+aggregate statistics. It does not force an address family, so the endpoints
+can observe different IPv4/IPv6 addresses or VPN/proxy routes.
+
+Equality compares normalized IP addresses plus all shared location and ASN
+fields: country, country code, Iran flag, city, region, region code, postal code,
+time zone, latitude, longitude, ASN, and network organization. A populated field
+on only one service counts as a difference; empty/null fields count as missing.
+Source, database-release identifiers, User-Agent, derived decimal IP, and
+container-only reverse DNS are excluded from equality checks.
+
+The initial release is ad-hoc signed and is not Apple-notarized. After attempting
+to open the downloaded app, macOS may require **System Settings → Privacy &
+Security → Open Anyway**. The cask preserves normal Gatekeeper/quarantine checks.
+A Developer ID certificate and notarization credentials are needed to remove
+that first-launch approval requirement.
+
+For releases that are not notarized, Homebrew displays an optional Terminal
+workaround at the end of installation. If macOS blocks IPinfo and you trust the
+download, remove the app's download quarantine attribute and reopen it:
+
+```sh
+sudo /usr/bin/xattr -r -d com.apple.quarantine "/Applications/IPinfo.app"
+open "/Applications/IPinfo.app"
+```
+
+Adjust the path if you installed the app elsewhere; the Homebrew message uses
+your configured application directory. The command applies only to IPinfo.
+
+```sh
+brew upgrade --cask ipinfo
+brew uninstall --cask ipinfo
+```
+
+To build and test the app on macOS:
+
+```sh
+npm ci
+npm run package:macos
+dist/macos/IPinfo.app/Contents/MacOS/IPinfo --check
+open dist/macos/IPinfo.app
+```
+
+Packaging runs the Swift comparison and CLI tests, compiles both CPU architectures,
+generates the app icon from the existing logo, signs the bundle, and writes a
+ZIP, DMG, SHA-256 checksums, signing-status JSON, and ready-to-publish cask into
+`dist/macos/`. The DMG includes the app and an Applications shortcut for a manual
+drag-and-drop installation. Homebrew installs both the app and its CLI; manual
+DMG users can run `/Applications/IPinfo.app/Contents/Helpers/ipinfo` directly.
+The optional
+`MACOS_SIGNING_IDENTITY` and `MACOS_NOTARY_PROFILE` environment variables select
+Developer ID signing and a preconfigured `notarytool` keychain profile.
+The `Desktop apps` GitHub Actions workflow builds pull requests and publishes
+version-tagged releases only after all five native packaging jobs and package-manager
+manifest validation pass. Tags
+must match the numeric `package.json` version.
+After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
+`Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
+
+#### Developer ID signing and notarization
+
+Gatekeeper checks downloaded software's developer identity and notarization,
+independently of whether it asks for protected permissions. The app needs only
+outbound HTTPS requests and has no special entitlements. A DMG alone does not
+change Gatekeeper approval. The supported distribution path uses a **Developer
+ID Application** certificate with its private key, hardened-runtime signing,
+Apple notarization, and stapled tickets for both the app and DMG.
+
+Configure these repository Actions secrets together to activate that path:
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12_BASE64` | Base64-encoded exported Developer ID Application `.p12`, including its private key |
+| `MACOS_CERTIFICATE_PASSWORD` | Password used to export the `.p12` |
+| `MACOS_SIGNING_IDENTITY` | Full `Developer ID Application: … (TEAMID)` identity |
+| `APPLE_ID` | Apple account for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for notarization |
+| `APPLE_TEAM_ID` | Apple Developer team ID |
+
+See [Apple's Developer ID distribution guidance](https://developer.apple.com/developer-id/)
+and [notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow).
+Use the account's certificate export and repository secret settings; do not
+commit credentials or paste them into source files.
+
+The workflow imports credentials into a temporary runner keychain, signs the
+nested CLI before the app, submits and staples the app, generates ZIP and DMG,
+then signs, notarizes, and staples the DMG. Gatekeeper assessments must pass
+before signed artifacts are published. Cleanup restores the runner's keychain
+search list and deletes the temporary certificate and keychain. Pull request
+builds never receive these secrets. With no signing secrets configured, builds
+remain ad-hoc signed; a partially configured set fails rather than publishing
+a release with an ambiguous signing state. `distribution-status.json` records
+the actual release status, and notarized casks omit the first-launch caveat.
+
+#### Linux and Windows packaging
+
+```sh
+npm ci
+npm run test:desktop
+npm run package:desktop -- linux-x64
+npm run package:desktop -- linux-arm64
+npm run package:desktop -- win32-x64
+npm run package:desktop -- win32-arm64
+npm run package:linux -- linux-x64
+npm run package:linux -- linux-arm64
+npm run package:windows-manifests
+```
+
+Each target writes a combined archive and checksum under `dist/desktop/`.
+Packaging bundles the CLI as a Node.js single executable, verifies the downloaded
+runtime against its official SHA-256 checksum, and bundles the graphical app
+with Electron. The runtime versions are pinned in `scripts/package-desktop.mjs`.
+After building each Linux archive, `package:linux` packages the same staged
+runtime as `.deb`, `.rpm`, and `.pkg.tar.zst` files. Its build-only nFPM tool is
+pinned to 2.47.0 with committed checksums; no nFPM installation is required.
+Build native packages on Linux AMD64/ARM64 or macOS ARM64. System package files
+are root-owned, desktop libraries are optional, and preferences stay outside
+the package tree. Package metadata uses `Unknown` for the project-wide license
+because this repository does not declare one; third-party license notices remain
+included.
+
+`package:windows-manifests` reads both built Windows ZIPs and writes the Scoop
+manifest and three WinGet manifests into `dist/package-managers/`. Every URL,
+version, architecture, nested executable path, and checksum comes from that
+release's actual artifacts. The manifest-validation job regenerates these from the downloaded
+CI artifacts, rather than reusing local hashes. Extract `IPinfo-winget-manifests.zip`
+from a published release, validate its version directory with
+`winget validate --manifest <directory>`, then submit that directory to
+`microsoft/winget-pkgs` using the official manifest workflow. Submission is a
+separate maintainer action; the release workflow does not submit or publish a
+package-manager registry entry automatically.
+
+Cross-packaging is supported with snapshots and code caches disabled; release
+CI builds and tests on native Linux and Windows runners for both architectures.
+The GUI is sandboxed, loads local assets, and can request only the two fixed
+lookup services through a narrow preload interface. No remote website is loaded
+inside the app. Runtime and interface licenses ship in the archives.
+
+On a matching native system, run `npm run verify:desktop` to test the packaged CLI,
+saved preferences, and real GUI renderer behavior. Linux CI uses `xvfb-run -a`
+for graphical tests. The release job waits for macOS and all four Linux/Windows
+jobs, verifies their checksums, then uploads all archives, six native Linux
+packages, and Windows package-manager manifests with one combined
+`SHA256SUMS`. PR/manual builds create Actions artifacts without publishing a
+release; publishing requires a matching version tag.
+Linux jobs test Debian installation directly, RPM installation in a Rocky Linux
+container, and x86_64 Arch installation in the official Arch container. These
+checks run the installed CLI without desktop libraries, verify both command
+links and the sandbox helper's owner/mode, reinstall/remove the package, and
+verify that saved settings survive. Run `scripts/verify-linux-package.sh` only
+in a disposable build host or container; it installs and removes system files.
+
+### Hosted service
+
 | | Cloudflare Worker | Container / Kubernetes |
 | --- | --- | --- |
 | Runtime | Shared IPinfo JavaScript handler on Cloudflare | Shared IPinfo JavaScript handler on Node.js 24 |

@@ -8,18 +8,28 @@
     "dev": "npm run build && node scripts/preview.mjs",
     "geoip:prepare": "node scripts/prepare-geolite2.mjs",
     "geoip:verify": "node scripts/verify-geolite2.mjs",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "package:macos": "node scripts/package-macos.mjs",
+    "package:desktop": "node scripts/package-desktop.mjs",
+    "test:desktop": "node --test tests/desktop.test.mjs",
+    "verify:desktop": "node scripts/verify-desktop.mjs",
+    "package:linux": "node scripts/package-linux.mjs",
+    "package:windows-manifests": "node scripts/package-windows-manifests.mjs"
   },
   "devDependencies": {
+    "@electron/packager": "20.3.0",
     "@resvg/resvg-js": "2.6.2",
     "@tailwindcss/postcss": "4.3.3",
     "daisyui": "5.7.47",
     "esbuild": "0.28.2",
     "postcss": "8.5.29",
+    "postject": "1.0.0-alpha.6",
     "tailwindcss": "4.3.3",
-    "wrangler": "4.148.0"
+    "tar": "7.5.22",
+    "wrangler": "4.148.0",
+    "yazl": "3.3.1"
   },
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "IP and network diagnostics for bea.sh",
   "dependencies": {
     "mmdb-lib": "3.0.3"

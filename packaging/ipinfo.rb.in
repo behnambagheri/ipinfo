@@ -1,0 +1,18 @@
+cask "ipinfo" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/behnambagheri/ipinfo/releases/download/v#{version}/IPinfo-#{version}-universal.zip"
+  name "IPinfo"
+  desc "Compare IP and network diagnostics from two services"
+  homepage "https://github.com/behnambagheri/ipinfo"
+
+  depends_on macos: :ventura
+
+  app "IPinfo.app"
+  binary "#{appdir}/IPinfo.app/Contents/Helpers/ipinfo"
+
+  uninstall quit: "sh.bea.ipinfo"
+
+__CAVEATS__
+end

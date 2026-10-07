@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=IPinfo
+Comment=IP and network diagnostics from two sources
+Exec=/usr/bin/ipinfo-gui
+Icon=bea-ipinfo
+Terminal=false
+Categories=Network;Utility;
+StartupWMClass=IPinfo

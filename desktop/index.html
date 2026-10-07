@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en" data-theme="bea">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>IPinfo</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="renderer.js" defer></script>
+</head>
+<body class="min-h-screen bg-base-200 text-base-content">
+  <main class="mx-auto max-w-5xl p-6 sm:p-10">
+    <header class="mb-8 flex items-center gap-4">
+      <img src="icon.png" width="56" height="56" alt="">
+      <div><h1 class="text-3xl font-semibold">IPinfo</h1><p class="mt-1 text-base-content/70">Your network, checked from two sources.</p></div>
+    </header>
+    <form id="lookup" class="card card-border mb-6 bg-base-100">
+      <div class="card-body gap-4">
+        <label class="font-medium" for="address">IP address</label>
+        <div class="flex flex-wrap gap-3">
+          <input id="address" class="input flex-1 min-w-48" placeholder="Leave empty to check your public IP" autocomplete="off" spellcheck="false" aria-describedby="input-hint">
+          <button id="refresh" type="submit" class="btn">Check IP</button>
+          <button id="current" type="button" class="btn">My IP</button>
+        </div>
+        <p id="input-hint" class="text-sm text-base-content/70">Enter an IPv4 or IPv6 address, or check your current connection.</p>
+        <div class="flex flex-wrap items-end gap-4">
+          <label class="flex flex-col gap-2 text-sm" for="source">Source
+            <select id="source" class="select"><option value="auto">Auto · both services</option><option value="ip.bea.sh">ip.bea.sh only</option><option value="ip.behnam.pro">ip.behnam.pro only</option></select>
+          </label>
+          <label class="flex flex-col gap-2 text-sm" for="timeout">Timeout per service (seconds)
+            <input id="timeout" type="number" min="1" max="30" step="1" value="5" class="input w-40" required>
+          </label>
+          <button id="save" type="button" class="btn">Save settings</button>
+        </div>
+        <p class="text-sm text-base-content/70">Saved settings apply to both the app and the command line. Auto skips unavailable results after the timeout.</p>
+      </div>
+    </form>
+    <p id="status" class="mb-5 text-sm text-base-content/70" role="status" aria-live="polite">Checking both services…</p>
+    <div id="results" class="grid gap-5 md:grid-cols-2"></div>
+    <footer class="mt-8 flex flex-wrap items-center justify-between gap-3 text-sm text-base-content/70">
+      <p>Matching results show only ip.bea.sh.</p>
+      <button id="copy" class="btn btn-sm" disabled>Copy results</button>
+    </footer>
+  </main>
+</body>
+</html>
