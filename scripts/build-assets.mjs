@@ -11,8 +11,22 @@ await writeFile('public/icons/apple-touch-icon.png', png(logo, 180));
 const maskable = logo.replace('<rect width="512" height="512" rx="120" fill="url(#blue)"/>', '<rect width="512" height="512" fill="url(#blue)"/><g transform="translate(51.2 51.2) scale(.8)">').replace('</svg>', '</g></svg>');
 await writeFile('public/icons/icon-maskable-512.png', png(maskable, 512));
 
-// Remove favicons left by earlier builds; branding is reserved for app icons.
-await rm('public/favicon.ico', { force: true });
+const sizes = [16, 32, 48];
+const images = sizes.map(size => png(logo, size));
+const header = Buffer.alloc(6 + 16 * sizes.length);
+header.writeUInt16LE(1, 2);
+header.writeUInt16LE(sizes.length, 4);
+let offset = header.length;
+sizes.forEach((size, index) => {
+  const entry = 6 + index * 16;
+  header[entry] = header[entry + 1] = size;
+  header.writeUInt16LE(1, entry + 4);
+  header.writeUInt16LE(32, entry + 6);
+  header.writeUInt32LE(images[index].length, entry + 8);
+  header.writeUInt32LE(offset, entry + 12);
+  offset += images[index].length;
+});
+await writeFile('public/favicon.ico', Buffer.concat([header, ...images]));
 
 let offline = await readFile('html/offline.html', 'utf8');
 for (const name of ['theme.html', 'styles.html']) offline = offline.replace(`{{ template "${name}" . }}`, await readFile(`html/${name}`, 'utf8'));
@@ -40,4 +54,4 @@ await writeFile('dist/public/sw.js', sw);
 assets.push(['sw.js', { type: types.js, body: Buffer.from(sw).toString('base64') }]);
 await mkdir('worker', { recursive: true });
 await writeFile('worker/assets.generated.mjs', `export const assets = new Map(${JSON.stringify(assets.map(([path, asset]) => [`/${path}`, asset]))});\n`);
-console.log(`Built logo, PWA icons, and app assets (${version}).`);
+console.log(`Built logo, favicon, PWA icons, and app assets (${version}).`);

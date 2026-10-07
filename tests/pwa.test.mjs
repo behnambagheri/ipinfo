@@ -23,8 +23,11 @@ test('PWA assets are available without visitor metadata, with correct binary byt
     assert.equal((await handleRequest(new Request(origin + icon.src, { method: 'HEAD' }))).status, 200);
   }
   const favicon = await handleRequest(new Request(`${origin}/favicon.ico`));
-  assert.equal(favicon.status, 204);
-  assert.equal(await favicon.text(), '');
+  assert.equal(favicon.status, 200);
+  assert.equal(favicon.headers.get('content-type'), 'image/x-icon');
+  const faviconBytes = Buffer.from(await favicon.arrayBuffer());
+  assert.equal(faviconBytes.readUInt16LE(2), 1);
+  assert.equal(faviconBytes.readUInt16LE(4), 3);
   const sw = await handleRequest(new Request(`${origin}/sw.js`));
   assert.equal(sw.headers.get('service-worker-allowed'), '/');
   assert.equal(sw.headers.get('cache-control'), 'no-cache');
@@ -32,7 +35,8 @@ test('PWA assets are available without visitor metadata, with correct binary byt
   assert.equal(await (await handleRequest(new Request(`${origin}/sw.js`, { method: 'HEAD' }))).text(), '');
   const html = await (await handleRequest(new Request(origin, { headers: { Accept: 'text/html', 'CF-Connecting-IP': '1.1.1.1' } }))).text();
   assert.match(html, /href="\/manifest.webmanifest"/);
-  assert.match(html, /rel="icon" href="data:,"/);
+  assert.match(html, /rel="icon" href="\/favicon.ico"/);
+  assert.match(html, /rel="icon" href="\/brand\/ipinfo.svg"/);
   const header = html.split('<header')[1].split('</header>')[0];
   assert.ok(!header.includes('<img'));
   assert.ok(!header.includes('data-install-app'));
@@ -85,7 +89,7 @@ test('service worker caches only public assets and removes only its own old cach
   const sw = await serviceWorker();
   assert.ok(sw.writes.includes('/offline.html'));
   assert.ok(sw.writes.includes('/brand/ipinfo.svg'));
-  assert.ok(!sw.writes.includes('/favicon.ico'));
+  assert.ok(sw.writes.includes('/favicon.ico'));
   assert.ok(!sw.writes.some(path => path === '/' || path.startsWith('/json') || path.includes('?')));
   sw.stores.set('ipinfo-assets-old', new Map());
   sw.stores.set('another-app', new Map());

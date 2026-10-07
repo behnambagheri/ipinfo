@@ -17,7 +17,9 @@ grep -Fq 'href="/manifest.webmanifest"' /tmp/ipinfo-container.html
 curl -fsS "$origin/manifest.webmanifest" | jq -e '.display == "standalone" and .start_url == "/" and (.icons | length == 3)'
 curl -fsS "$origin/sw.js" | grep -Fq 'ipinfo-assets-'
 curl -fsS "$origin/offline.html" | grep -Fq 'You’re offline'
-test "$(curl -fsS -o /dev/null -w '%{http_code}' "$origin/favicon.ico")" = 204
+curl -fsS "$origin/favicon.ico" -o /tmp/ipinfo-container.ico
+test -s /tmp/ipinfo-container.ico
+curl -fsSI "$origin/favicon.ico" | grep -iq 'content-type: image/x-icon'
 curl -fsSI "$origin/icons/icon-192.png" | grep -iq 'content-type: image/png'
 actual="$(curl -fsS "$origin/ip")"
 spoofed="$(curl -fsS -H 'X-Forwarded-For: 203.0.113.10' -H 'X-Real-IP: 203.0.113.20' "$origin/ip")"

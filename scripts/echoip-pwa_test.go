@@ -14,6 +14,7 @@ func TestPWAAssets(t *testing.T) {
 		{"/manifest.webmanifest", "application/manifest+json"},
 		{"/sw.js", "text/javascript; charset=utf-8"},
 		{"/brand/ipinfo.svg", "image/svg+xml"},
+		{"/favicon.ico", "image/x-icon"},
 		{"/icons/icon-192.png", "image/png"},
 		{"/offline.html", "text/html; charset=utf-8"},
 	} {
@@ -31,11 +32,6 @@ func TestPWAAssets(t *testing.T) {
 			}
 		}
 	}
-	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
-	if response.Code != http.StatusNoContent || response.Body.Len() != 0 {
-		t.Fatal("favicon should be empty")
-	}
 	for _, route := range []string{"/", "/json", "/json?ip=8.8.8.8", "/brand/", "/icons/../sw.js", "/missing.svg"} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, route, nil))
@@ -43,7 +39,7 @@ func TestPWAAssets(t *testing.T) {
 			t.Fatalf("%s did not reach echoip", route)
 		}
 	}
-	response = httptest.NewRecorder()
+	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPost, "/sw.js", nil))
 	if response.Code != http.StatusMethodNotAllowed {
 		t.Fatal("POST should be rejected")

@@ -74,9 +74,9 @@ browser behavior does not change the API's default connection detection.
 ## Local development
 
 The interface includes the original network-locator logo in
-`public/brand/ipinfo.svg`, used for the Apple touch icon, regular/maskable PWA
-icons, install dialog, and offline screen. The header uses text branding and
-browser tabs have no favicon. `npm run build` generates the
+`public/brand/ipinfo.svg`, used for the SVG favicon, multi-size ICO, Apple touch
+icon, regular/maskable PWA icons, install dialog, and offline screen. The header
+uses text branding. `npm run build` generates the
 raster icons and an offline page, then packages the same public assets into
 the Worker and the container's echoip binary. To change the logo, edit the SVG
 and rebuild; no external image service is used at runtime.
@@ -99,8 +99,7 @@ never put in its cache. Offline app navigation shows a reconnect screen;
 network and location diagnostics require a live connection. New asset builds
 change the service worker's cache version and remove old IPinfo asset caches.
 Both deployments serve `/manifest.webmanifest`, `/sw.js`, `/offline.html`,
-`/brand/ipinfo.svg`, and `/icons/*` directly. `/favicon.ico` returns an empty
-HTTP 204 response. Reverse proxies
+`/favicon.ico`, `/brand/ipinfo.svg`, and `/icons/*` directly. Reverse proxies
 must forward these paths and permit the service worker and manifest in any
 additional Content Security Policy they apply.
 
