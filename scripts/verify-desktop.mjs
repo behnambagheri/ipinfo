@@ -22,5 +22,13 @@ try {
   console.log("Standalone CLI smoke test passed.");
   const gui = process.platform === "win32" ? join(folder, "IPinfo-GUI.exe")
     : process.platform === "darwin" ? join(folder, "IPinfo.app/Contents/MacOS/IPinfo-GUI") : join(folder, "IPinfo-GUI");
-  execFileSync(gui, ["--smoke-test", ...(process.platform === "linux" ? ["--disable-gpu"] : [])], { env, stdio: "inherit", timeout: 45000 });
+  const log = join(home, "electron.log");
+  try {
+    execFileSync(gui, ["--smoke-test", "--enable-logging=file", `--log-file=${log}`,
+      ...(["linux", "win32"].includes(process.platform) ? ["--disable-gpu"] : [])],
+    { env, stdio: "inherit", timeout: 45000 });
+  } catch (error) {
+    try { console.error(readFileSync(log, "utf8").slice(-20000)); } catch { /* No Chromium log was created. */ }
+    throw error;
+  }
 } finally { rmSync(home, { recursive: true, force: true }); }
