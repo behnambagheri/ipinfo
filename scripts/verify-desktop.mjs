@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from "node:child_process";
-import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import assert from "node:assert/strict";
@@ -23,12 +23,25 @@ try {
   const gui = process.platform === "win32" ? join(folder, "IPinfo-GUI.exe")
     : process.platform === "darwin" ? join(folder, "IPinfo.app/Contents/MacOS/IPinfo-GUI") : join(folder, "IPinfo-GUI");
   const log = join(home, "electron.log");
+  // Chromium resolves Windows known folders through the real user profile.
+  // Keep those environment variables intact and isolate its data with the
+  // supported Chromium argument; GUI smoke settings are kept in memory.
+  const guiEnv = { ...process.env, ELECTRON_ENABLE_LOGGING: "1" };
+  const guiArgs = ["--smoke-test", `--user-data-dir=${join(home, "chromium")}`,
+    "--enable-logging=file", `--log-file=${log}`,
+    ...(["linux", "win32"].includes(process.platform) ? ["--disable-gpu"] : [])];
   try {
-    execFileSync(gui, ["--smoke-test", "--enable-logging=file", `--log-file=${log}`,
-      ...(["linux", "win32"].includes(process.platform) ? ["--disable-gpu"] : [])],
-    { env, stdio: "inherit", timeout: 45000 });
+    execFileSync(gui, guiArgs, { env: guiEnv, stdio: "inherit", timeout: 45000 });
   } catch (error) {
     try { console.error(readFileSync(log, "utf8").slice(-20000)); } catch { /* No Chromium log was created. */ }
+    if (process.platform === "win32") {
+      const original = join(resolve("dist/desktop", `${osName}-${cpu}`, "build/runtime"), `IPinfo-win32-${process.arch}`, "IPinfo-GUI.exe");
+      if (existsSync(original)) {
+        const diagnostic = spawnSync(original, guiArgs, { env: guiEnv, encoding: "utf8", timeout: 45000 });
+        console.error("Original packaged runtime diagnostic:", diagnostic.status, diagnostic.stdout, diagnostic.stderr);
+        try { console.error(readFileSync(log, "utf8").slice(-20000)); } catch { /* No Chromium log was created. */ }
+      }
+    }
     throw error;
   }
 } finally { rmSync(home, { recursive: true, force: true }); }
