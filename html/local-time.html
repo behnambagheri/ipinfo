@@ -1,0 +1,19 @@
+<script>
+  (() => {
+    const dates = new Intl.DateTimeFormat('en', { dateStyle: 'medium' });
+    const timestamps = new Intl.DateTimeFormat('en', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+    });
+    window.IPinfoTime = {
+      zone: dates.resolvedOptions().timeZone,
+      date: value => dates.format(new Date(value)),
+      timestamp: value => timestamps.format(new Date(value)),
+      dateKey: value => dates.format(new Date(value)),
+      reportingWindow: day => {
+        const start = new Date(day + 'T00:00:00Z');
+        const end = new Date(start.getTime() + 86400000);
+        return timestamps.format(start) + ' – ' + timestamps.format(end);
+      },
+    };
+  })();
+</script>

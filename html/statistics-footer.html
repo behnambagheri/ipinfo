@@ -7,6 +7,7 @@
       .then(data => {
         if (data.site !== node.dataset.site || !Number.isSafeInteger(data.all_time?.total)) throw new Error('Unexpected statistics');
         node.textContent = new Intl.NumberFormat('en').format(data.all_time.total) + ' recorded requests' + (data.stale ? ' · updates delayed' : '');
+        node.title = 'Statistics updated: ' + window.IPinfoTime.timestamp(data.updated_at);
       })
       .catch(() => { node.textContent = 'Statistics temporarily unavailable'; });
   })();

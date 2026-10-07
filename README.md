@@ -123,7 +123,11 @@ When enabled, the footer shows recorded requests and links to `/stats`.
 `last_30_days`, and 30 `daily` entries. Each period contains `total`,
 `web`, `api`, and `errors`. Daily periods use UTC; the 30-day window
 includes today. Zero-traffic days appear with zero counts. `started_at` is
-null until the first recorded request. All statistics responses use
+stored as an absolute timestamp. Browser timestamps and reporting-window start/end
+times use the user's browser time zone, including daylight-saving rules. Daily
+counts retain their UTC aggregation boundaries; the page labels them as reporting
+days and displays their full local intervals instead of claiming local-day totals.
+`started_at` is null until the first recorded request. All statistics responses use
 `Cache-Control: no-store`; they are not cached by the service worker.
 
 A diagnostic GET counts once: the IP/location/ASN routes, custom lookups, and
@@ -308,10 +312,12 @@ IPv4/IPv6 prefix index and a bounded 4 MiB page cache avoid loading the full
 production databases into Worker memory. Public `/__geoip/*` requests return
 404; only the internal asset binding reads the database files.
 
-The footer shows one update date when ASN, City, and Country share the same UTC
+The footer shows one update date when ASN, City, and Country share the same local
 date, and separate dates otherwise. These
 come from the databases' embedded build timestamps, rather than release upload
-dates or filesystem modification times. `/database-info` exposes the timestamps
+dates or filesystem modification times. Visible dates and tooltips use the browser's
+time zone; ISO timestamps in the API and HTML datetime attributes retain the exact
+instant. `/database-info` exposes the timestamps
 as JSON without requiring a visitor IP. The Worker reads its deployed manifest;
 the container reads metadata from its open database readers, including custom
 paths and disabled databases. This endpoint needs no international connection.

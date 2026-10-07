@@ -23,10 +23,11 @@
         </div>
       </header>
       <p id="statistics-status" role="status" aria-live="polite" class="text-sm text-base-content/70">Loading statistics…</p>
+      <p id="statistics-timezone" class="text-xs text-base-content/60"></p>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Recorded requests</div><div class="stat-value text-3xl" data-stat="all_time.total">—</div><div class="stat-desc whitespace-normal">This site, since tracking started</div></div></div>
-        <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Today</div><div class="stat-value text-3xl" data-stat="today.total">—</div><div class="stat-desc">00:00–24:00 UTC</div></div></div>
-        <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Last 30 days</div><div class="stat-value text-3xl" data-stat="last_30_days.total">—</div><div class="stat-desc">Includes today · UTC</div></div></div>
+        <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Current reporting day</div><div class="stat-value text-3xl" data-stat="today.total">—</div><div id="statistics-day-window" class="stat-desc whitespace-normal">Loading reporting window…</div></div></div>
+        <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Last 30 reporting days</div><div class="stat-value text-3xl" data-stat="last_30_days.total">—</div><div class="stat-desc whitespace-normal">Includes the current reporting day</div></div></div>
         <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Web requests</div><div class="stat-value text-3xl" data-stat="all_time.web">—</div><div class="stat-desc">Diagnostic HTML pages · all time</div></div></div>
         <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">API requests</div><div class="stat-value text-3xl" data-stat="all_time.api">—</div><div class="stat-desc whitespace-normal">JSON and plain text · all time</div></div></div>
         <div class="stats stats-vertical border border-base-300 bg-base-100"><div class="stat"><div class="stat-title">Requests with errors</div><div class="stat-value text-3xl" data-stat="all_time.errors">—</div><div class="stat-desc whitespace-normal">Included in the request totals · all time</div></div></div>
@@ -34,12 +35,12 @@
       <section class="card card-border bg-base-100" aria-labelledby="daily-title">
         <div class="card-body p-5 sm:p-7">
           <h2 id="daily-title" class="card-title">Daily requests</h2>
-          <p class="text-sm text-base-content/60">Last 30 days · UTC</p>
+          <p class="text-sm text-base-content/60">Last 30 reporting days · times shown in your time zone</p>
           <svg id="statistics-chart" viewBox="0 0 600 160" role="img" aria-label="Daily request totals over the last 30 days" class="mt-3 h-40 w-full"></svg>
-          <div class="flex justify-between text-xs text-base-content/60"><span id="chart-start">—</span><span>Today</span></div>
+          <div class="flex justify-between text-xs text-base-content/60"><span id="chart-start">—</span><span>Current reporting day</span></div>
           <details class="mt-4">
             <summary class="cursor-pointer text-sm">View daily counts</summary>
-            <div class="mt-3 overflow-x-auto"><table class="table table-sm"><caption class="sr-only">Daily diagnostic requests in UTC</caption><thead><tr><th scope="col">Date</th><th scope="col">Total</th><th scope="col">Web</th><th scope="col">API</th><th scope="col">Errors</th></tr></thead><tbody id="statistics-days"></tbody></table></div>
+            <div class="mt-3 overflow-x-auto"><table class="table table-sm"><caption class="sr-only">Daily diagnostic requests, with reporting windows in your time zone</caption><thead><tr><th scope="col">Reporting window</th><th scope="col">Total</th><th scope="col">Web</th><th scope="col">API</th><th scope="col">Errors</th></tr></thead><tbody id="statistics-days"></tbody></table></div>
           </details>
         </div>
       </section>
@@ -49,15 +50,19 @@
           <p class="text-sm leading-relaxed text-base-content/70">These figures belong only to {{ .Site }}. Each diagnostic GET request counts once, including requests from browsers, curl, wget, scripts, and bots. Web means an HTML response; API means JSON or plain text. These are request counts, not unique visitors.</p>
           <p class="text-sm leading-relaxed text-base-content/70">Assets, health checks, database metadata, statistics, HEAD, and OPTIONS requests are excluded. Error responses from diagnostic routes are included. No visitor IPs, lookup addresses, or complete User-Agent strings are stored in these counters.</p>
           <p class="text-sm leading-relaxed text-base-content/70">Counts begin when tracking is enabled. Reporting failures can delay updates; requests that could not be recorded are absent from these figures.</p>
+          <p class="text-sm leading-relaxed text-base-content/70">Daily counts use fixed reporting windows. Their start and end times are converted to your time zone; they may differ from your local midnight-to-midnight calendar day.</p>
           <p id="statistics-started" class="text-xs text-base-content/60"></p>
         </div>
       </section>
     </main>
+    {{ template "local-time.html" . }}
     <script>
       (() => {
         const status = document.getElementById('statistics-status');
         const refresh = document.getElementById('refresh-statistics');
         const format = new Intl.NumberFormat('en');
+        const local = window.IPinfoTime;
+        document.getElementById('statistics-timezone').textContent = 'Times shown in your time zone: ' + local.zone;
         async function load() {
           refresh.disabled = true;
           try {
@@ -71,15 +76,16 @@
               if (!Number.isSafeInteger(value) || value < 0) throw new Error('Invalid counts');
               node.textContent = format.format(value);
             }
-            status.textContent = (data.stale ? 'Showing saved statistics. Synchronization is delayed. Last synchronized: ' : 'Updated: ') + new Date(data.updated_at).toLocaleString('en', { timeZone: 'UTC' }) + ' UTC';
-            document.getElementById('statistics-started').textContent = data.started_at ? 'First recorded request: ' + new Date(data.started_at).toLocaleString('en', { timeZone: 'UTC' }) + ' UTC' : 'No diagnostic requests recorded yet.';
+            status.textContent = (data.stale ? 'Showing saved statistics. Synchronization is delayed. Last synchronized: ' : 'Updated: ') + local.timestamp(data.updated_at);
+            document.getElementById('statistics-started').textContent = data.started_at ? 'First recorded request: ' + local.timestamp(data.started_at) : 'No diagnostic requests recorded yet.';
+            document.getElementById('statistics-day-window').textContent = local.reportingWindow(data.daily.at(-1).day);
             const table = document.getElementById('statistics-days'); table.replaceChildren();
             for (const day of [...data.daily].reverse()) {
               const row = document.createElement('tr');
               for (const key of ['day', 'total', 'web', 'api', 'errors']) {
                 const cell = document.createElement(key === 'day' ? 'th' : 'td');
                 if (key === 'day') cell.scope = 'row';
-                cell.textContent = key === 'day' ? day[key] : format.format(day[key]); row.append(cell);
+                cell.textContent = key === 'day' ? local.reportingWindow(day[key]) : format.format(day[key]); row.append(cell);
               }
               table.append(row);
             }
@@ -89,10 +95,10 @@
               const bar = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
               const height = day.total / max * 145;
               for (const [key, value] of Object.entries({ x: index * 20 + 2, y: 150 - height, width: 16, height, rx: 2, fill: 'var(--color-neutral)' })) bar.setAttribute(key, String(value));
-              const title = document.createElementNS('http://www.w3.org/2000/svg', 'title'); title.textContent = day.day + ': ' + format.format(day.total) + ' requests';
+              const title = document.createElementNS('http://www.w3.org/2000/svg', 'title'); title.textContent = local.reportingWindow(day.day) + ': ' + format.format(day.total) + ' requests';
               bar.append(title); chart.append(bar);
             });
-            document.getElementById('chart-start').textContent = data.daily[0].day;
+            document.getElementById('chart-start').textContent = local.date(data.daily[0].day + 'T00:00:00Z');
           } catch {
             status.textContent = 'Statistics are temporarily unavailable. Please try Refresh shortly.';
           } finally { refresh.disabled = false; }
