@@ -58,6 +58,7 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | `/user-agent` | Raw request User-Agent |
 | `/database-info` | Actual database build dates and update status |
 | `/healthz`, `/health` | Service health, build revision, and active database release |
+| `/stats`, `/stats.json` | Statistics page and JSON request counters for this deployment only, when configured |
 | `/port/<number>` | TCP check when enabled; otherwise HTTP 501 |
 
 ```sh
@@ -99,6 +100,117 @@ address-family override. `curl -4` and `curl -6` choose curl's connection
 family, but a VPN or proxy can forward the request over a different family.
 The browser's optional IPv4/IPv6 buttons use ipify only when clicked; this
 browser behavior does not change the API's default connection detection.
+
+## Usage statistics
+
+Each deployment displays **only its own usage**: `ip.bea.sh` and
+`ip.behnam.pro` have independent counters, even though their aggregate data
+shares one Cloudflare D1 database. The site identity is fixed in the runtime,
+never selected by the Host header, a query parameter, or a report payload.
+There is no public cross-site or combined statistics endpoint.
+
+When enabled, the footer shows recorded requests and links to `/stats`.
+`/stats.json` returns `site`, `metric`, `timezone`, `started_at`,
+`last_request_at`, `updated_at`, `stale`, `all_time`, `today`,
+`last_30_days`, and 30 `daily` entries. Each period contains `total`,
+`web`, `api`, and `errors`. Daily periods use UTC; the 30-day window
+includes today. Zero-traffic days appear with zero counts. `started_at` is
+null until the first recorded request. All statistics responses use
+`Cache-Control: no-store`; they are not cached by the service worker.
+
+A diagnostic GET counts once: the IP/location/ASN routes, custom lookups, and
+port checks. HTML responses count as web; JSON/plain-text responses count as
+API, regardless of the User-Agent. Browsers can also make API requests. Bots
+and scripts count too; these figures are **requests, not unique visitors**.
+Diagnostic errors count in the total and in the errors subset. HEAD, OPTIONS,
+other methods, health probes, database metadata, public assets, unknown routes,
+statistics reads, and reporting requests are excluded. Counters retain no
+visitor IPs, lookup addresses, cookies, or complete User-Agent strings.
+Tracking begins when enabled; no historical usage is inferred.
+
+### Cloudflare setup
+
+`wrangler.jsonc` binds `USAGE_DB` to `bea-ipinfo-usage`.
+`migrations/0001_usage.sql` creates the counters table. CI applies outstanding
+D1 migrations before deploying the Worker; its API token requires account
+**D1: Edit** in addition to the existing deployment permissions.
+
+Generate a high-entropy reporting token (32–256 URL-safe characters), install
+it as the Worker secret `IPINFO_STATS_REPORT_TOKEN`, and store the same value
+in the Kubernetes Secret described below. Do not use a Cloudflare account API
+token as the reporting credential. Wrangler preserves installed Worker secrets
+on subsequent deployments. Never commit either token.
+
+The Worker increments one daily aggregate atomically for each diagnostic GET,
+using `ctx.waitUntil` so it does not delay the diagnostic response. D1 errors
+or exhausted limits leave diagnostics available, but those failed writes are
+not recorded or replayed. Statistics therefore describe **recorded requests**,
+not an exact billing ledger. There is no sampling or in-memory total that resets
+on Worker redeployment. Reads use the primary database.
+
+D1 and Workers have separate account-wide included allowances; D1 counts rows
+read/written, not HTTP visits. Keeping aggregates avoids storing one database
+row per request, but each Worker increment still consumes a write. There is no
+plan upgrade in this setup. See [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/)
+and [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/).
+
+### Container / Kubernetes setup
+
+The container records counters in atomic per-process JSON files in
+`IPINFO_STATS_DIR`. Diagnostic responses wait only for local persistence,
+never for the connection to Cloudflare. A local disk failure leaves diagnostics
+available; a later successful snapshot can recover counts still in memory.
+A crash while storage is failing can lose those unpersisted counts.
+
+Every minute, each replica scans the shared spool and sends changed cumulative
+source/day counts to `https://ip.bea.sh/internal/usage` over authenticated
+HTTPS. The collector always attributes that credential to `ip.behnam.pro`.
+It merges counters using maximum values: duplicate reports, concurrent replicas,
+out-of-order arrivals, and lost acknowledgements cannot double count usage.
+Replacement pods can resend files left by earlier processes. Source files are
+retained so pending counts survive extended outages; do not delete the spool
+while reports may be pending. Restoring an older copy can lose counts that were
+never reported, but cannot reduce totals already stored centrally.
+
+All replicas periodically refresh a shared-site snapshot, including replicas
+with no traffic. Public container statistics show the latest successfully
+retrieved central snapshot and can lag by roughly one reporting interval.
+An outage keeps the saved snapshot available, explicitly marked `stale` after
+a failed synchronization or two reporting intervals. Before the first successful
+synchronization, `/stats.json` returns HTTP 503 rather than invented zeros.
+The website continues serving diagnostics during synchronization failures.
+
+Create a Secret named `ipinfo-statistics` with the reporting token in its
+`token` key, then enable these Helm values:
+
+```yaml
+statistics:
+  enabled: true
+  endpoint: https://ip.bea.sh/internal/usage
+  existingSecret: ipinfo-statistics
+  secretKey: token
+  persistence:
+    enabled: true
+    storageClass: nfs-client
+    size: 1Gi
+```
+
+The chart creates a ReadWriteMany PVC, `<release>-ipinfo-statistics`, and
+mounts it separately from database-update storage. Use a storage class that
+supports shared volumes and atomic rename, or supply
+`statistics.persistence.existingClaim`. Each process writes only its own
+file; replicas never update another process's source file. Shared persistent
+storage lets pending reports survive replacing any or all replicas. With
+`statistics.persistence.enabled: false`, the chart uses emptyDir: pending
+counts then survive only container restarts in the same pod, not pod replacement.
+The central database retains already reported counts in either mode.
+
+For Docker, mount a durable volume at `/var/lib/ipinfo/statistics` and provide
+`IPINFO_STATS_ENDPOINT=https://ip.bea.sh/internal/usage`,
+`IPINFO_STATS_REPORT_TOKEN`, and optionally `IPINFO_STATS_DIR`.
+The endpoint is deliberately restricted to the configured HTTPS collector;
+credentials cannot follow redirects to another host. Omit the endpoint to disable
+container statistics. Worker statistics are enabled by the D1 binding.
 
 ## Local development
 

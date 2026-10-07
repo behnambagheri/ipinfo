@@ -1,0 +1,18 @@
+{{- $stats := .Values.statistics | default dict }}
+{{- $storage := $stats.persistence | default dict }}
+{{- if and $stats.enabled $storage.enabled (not $storage.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ipinfo.fullname" . }}-statistics
+  labels:
+    {{- include "ipinfo.labels" . | nindent 4 }}
+spec:
+  accessModes: [ReadWriteMany]
+  {{- if $storage.storageClass }}
+  storageClassName: {{ $storage.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ $storage.size | default "1Gi" | quote }}
+{{- end }}

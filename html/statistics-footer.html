@@ -1,0 +1,14 @@
+{{ if .StatisticsEnabled }}
+<script>
+  (() => {
+    const node = document.getElementById('usage-count');
+    fetch('/stats.json', { cache: 'no-store', signal: AbortSignal.timeout(5000) })
+      .then(response => { if (!response.ok) throw new Error('Unavailable'); return response.json(); })
+      .then(data => {
+        if (data.site !== node.dataset.site || !Number.isSafeInteger(data.all_time?.total)) throw new Error('Unexpected statistics');
+        node.textContent = new Intl.NumberFormat('en').format(data.all_time.total) + ' recorded requests' + (data.stale ? ' · updates delayed' : '');
+      })
+      .catch(() => { node.textContent = 'Statistics temporarily unavailable'; });
+  })();
+</script>
+{{ end }}

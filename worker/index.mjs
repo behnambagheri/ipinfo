@@ -3,6 +3,8 @@ import { templateData } from './render.mjs';
 import { normalizeIP, decimalIP } from './ip.mjs';
 import { assets } from './assets.generated.mjs';
 import { lookupGeoIP, databaseInfo } from './geoip.mjs';
+import { renderStatistics } from './statistics-page.generated.mjs';
+import { usageEvent } from './statistics.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -22,10 +24,31 @@ function visitorData(ip, request) {
   return { ip, ip_decimal: decimalIP(ip), country: country ? countries.of(country) : undefined, country_iso: country, country_ir: country === 'IR', city: cf.city, region_name: cf.region, region_code: cf.regionCode, postal_code: cf.postalCode, timezone: cf.timezone, latitude: number(cf.latitude), longitude: number(cf.longitude), asn: cf.asn ? `AS${cf.asn}` : undefined, asn_org: cf.asOrganization, user_agent: request.headers.get('user-agent') || '', source: 'Cloudflare' };
 }
 export async function handleRequest(request, env = {}, context = {}) {
+  const result = await diagnosticResponse(request, env, context);
+  if (context.statistics) {
+    const event = usageEvent(request, result);
+    if (event) {
+      // Recording never turns a successful diagnostic into an error response.
+      const pending = Promise.resolve().then(() => context.statistics.record(event)).catch(() => {
+        console.warn('Usage recording is temporarily unavailable.');
+      });
+      if (context.waitUntil) context.waitUntil(pending);
+      else await pending;
+    }
+  }
+  return result;
+}
+async function diagnosticResponse(request, env = {}, context = {}) {
   const head = request.method === 'HEAD';
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...securityHeaders, 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS', 'Access-Control-Allow-Headers': 'Accept' } });
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
+  if (['/stats', '/stats.json'].includes(url.pathname)) {
+    if (!context.statistics) return json({ error: 'Statistics are not configured.' }, 503, head);
+    if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site }), 200, 'text/html; charset=utf-8', head);
+    try { return json(await context.statistics.snapshot(), 200, head); }
+    catch { return json({ error: 'Statistics are temporarily unavailable.' }, 503, head); }
+  }
   if (['/healthz', '/health'].includes(url.pathname)) return json({ status: 'ok', revision: env.BUILD_REVISION, database_release: env.GEOIP_RELEASE }, 200, head);
   if (url.pathname === '/database-info') {
     try { return json(await (env.LOCAL_GEOIP ? env.LOCAL_GEOIP.info() : databaseInfo(env)), 200, head); }

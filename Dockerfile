@@ -11,6 +11,7 @@ COPY worker/ ./worker/
 COPY server/ ./server/
 COPY scripts/ ./scripts/
 COPY tests/ ./tests/
+COPY migrations/ ./migrations/
 RUN npm run build && npm test
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
@@ -22,7 +23,7 @@ FROM node:24-alpine
 ARG BUILD_REVISION=development
 ENV NODE_ENV=production BUILD_REVISION=$BUILD_REVISION
 RUN apk add --no-cache ca-certificates curl \
-    && mkdir -p /app /var/lib/ipinfo/geolite2 \
+    && mkdir -p /app /var/lib/ipinfo/geolite2 /var/lib/ipinfo/statistics \
     && chown -R 10001:10001 /var/lib/ipinfo
 COPY --from=application /build/dist/server.mjs /app/server.mjs
 COPY --from=geolite2 /data/geolite2/ /data/geolite2/
@@ -30,6 +31,7 @@ COPY THIRD_PARTY_NOTICES.md /usr/share/doc/ipinfo/THIRD_PARTY_NOTICES.md
 USER 10001:10001
 WORKDIR /app
 VOLUME ["/var/lib/ipinfo/geolite2"]
+VOLUME ["/var/lib/ipinfo/statistics"]
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
 ENTRYPOINT ["node", "/app/server.mjs"]

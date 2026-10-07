@@ -1,4 +1,9 @@
 {{- $updates := include "ipinfo.databaseUpdates" . | fromJson }}
+{{- $stats := .Values.statistics | default dict }}
+{{- $statsStorage := $stats.persistence | default dict }}
+{{- if and $stats.enabled (not $stats.existingSecret) }}
+{{- fail "statistics.enabled requires statistics.existingSecret" }}
+{{- end }}
 {{- if and $updates.existingClaim (ne (int .Values.replicaCount) 1) }}
 {{- fail "databaseUpdates.existingClaim requires replicaCount=1; update directories must not be shared by concurrent writers" }}
 {{- end }}
@@ -61,6 +66,17 @@ spec:
               value: /etc/ipinfo/updates.json
             - name: IPINFO_DATABASE_UPDATE_DIR
               value: /var/lib/ipinfo/geolite2
+            {{- if $stats.enabled }}
+            - name: IPINFO_STATS_ENDPOINT
+              value: {{ $stats.endpoint | quote }}
+            - name: IPINFO_STATS_DIR
+              value: /var/lib/ipinfo/statistics
+            - name: IPINFO_STATS_REPORT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $stats.existingSecret | quote }}
+                  key: {{ $stats.secretKey | default "token" | quote }}
+            {{- end }}
             {{- if $updates.proxySecret.name }}
             - name: IPINFO_DATABASE_UPDATE_PROXY
               valueFrom:
@@ -74,6 +90,10 @@ spec:
               readOnly: true
             - name: database-updates
               mountPath: /var/lib/ipinfo/geolite2
+            {{- if $stats.enabled }}
+            - name: statistics
+              mountPath: /var/lib/ipinfo/statistics
+            {{- end }}
           startupProbe:
             httpGet:
               path: /healthz
@@ -91,6 +111,16 @@ spec:
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        {{- if $stats.enabled }}
+        - name: statistics
+          {{- if or $statsStorage.enabled $statsStorage.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $statsStorage.existingClaim | default (printf "%s-statistics" (include "ipinfo.fullname" .)) | quote }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $statsStorage.size | default "1Gi" | quote }}
+          {{- end }}
+        {{- end }}
         - name: database-update-settings
           configMap:
             name: {{ default (printf "%s-database-updates" (include "ipinfo.fullname" .)) $updates.existingConfigMap }}

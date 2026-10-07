@@ -1,6 +1,7 @@
 node_modules/
 dist/
 worker/render.generated.mjs
+worker/statistics-page.generated.mjs
 worker/assets.generated.mjs
 public/icons/
 public/favicon.ico

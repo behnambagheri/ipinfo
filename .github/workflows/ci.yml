@@ -132,6 +132,13 @@ jobs:
         id: geolite2
         run: |
           node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; const { release } = JSON.parse(readFileSync("dist/geolite2/manifest.json", "utf8")); appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\n`);'
+      - name: Apply usage database migrations
+        uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: '4.148.0'
+          command: d1 migrations apply USAGE_DB --remote
       - name: Deploy to ip.bea.sh
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:

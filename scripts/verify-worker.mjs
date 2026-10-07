@@ -22,8 +22,15 @@ for (let attempt = 1; attempt <= 12; attempt++) {
         if (!lookup.ok || data.ip !== ip || data.source !== 'GeoLite2' || data.database_release !== databaseRelease ||
             !(data.country_iso || data.asn)) throw new Error(`Live GeoLite2 lookup failed for ${ip}`);
       }
+      const statistics = await fetch('https://ip.bea.sh/stats.json?site=ip.behnam.pro', { signal: AbortSignal.timeout(10000), redirect: 'error', cache: 'no-store' });
+      const usage = await statistics.json();
+      if (!statistics.ok || statistics.headers.get('cache-control') !== 'no-store' || usage.site !== 'ip.bea.sh' || usage.timezone !== 'UTC' ||
+          usage.metric !== 'diagnostic_get_requests' || usage.daily?.length !== 30 || !Number.isSafeInteger(usage.all_time?.total)) {
+        throw new Error('Live site statistics are unavailable or have the wrong site identity');
+      }
       console.log(`Verified ${url} is running ${revision}.`);
       console.log(`Verified IPv4 and IPv6 GeoLite2 lookups on ${databaseRelease}.`);
+      console.log('Verified independent ip.bea.sh statistics.');
       process.exit(0);
     }
     observed = `HTTP ${response.status}, revision ${health.revision || 'unavailable'}, database ${health.database_release || 'unavailable'}`;

@@ -25,6 +25,17 @@ trustedHeaders: ""
 cacheSize: 0
 portLookup: false
 reverseLookup: true
+statistics:
+  enabled: false
+  endpoint: https://ip.bea.sh/internal/usage
+  # The Secret contains the reporting token, never a Cloudflare account API token.
+  existingSecret: ""
+  secretKey: token
+  persistence:
+    enabled: true
+    existingClaim: ""
+    storageClass: ""
+    size: 1Gi
 databaseUpdates:
   enabled: true
   interval: "168h"

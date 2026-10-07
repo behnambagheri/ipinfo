@@ -208,6 +208,7 @@
       <aside>
         <p>bea.sh IPinfo <span aria-hidden="true">·</span> Powered by GeoLite2</p>
         <p class="text-xs">GeoLite2 data created by <a href="https://www.maxmind.com" class="underline">MaxMind</a>.</p>
+        {{ if .StatisticsEnabled }}<p class="text-xs"><a href="/stats" id="usage-count" data-site="{{ .StatisticsSite }}" class="link link-hover">View usage statistics</a></p>{{ end }}
         <div id="database-updates" class="hidden max-w-full text-xs">
           <p data-database-common class="hidden">GeoLite2 updated: <time data-database-shared></time></p>
           <div data-database-details>
@@ -225,6 +226,7 @@
         <a href="https://bea.sh/" class="hover:underline">About</a>
         <a href="https://bea.sh/#contact" class="hover:underline">Contact</a>
         <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}" class="hover:underline">JSON API</a>
+        {{ if .StatisticsEnabled }}<a href="/stats" class="hover:underline">Statistics</a>{{ end }}
         <button id="open-usage" type="button" aria-haspopup="dialog" aria-controls="usage-dialog" class="btn btn-link h-auto min-h-0 p-0 text-sm font-normal text-base-content/60 no-underline hover:underline">Usage</button>
         <button data-install-app type="button" aria-haspopup="dialog" aria-controls="install-dialog" class="btn btn-link h-auto min-h-0 p-0 text-sm font-normal text-base-content/60 no-underline hover:underline hidden">Install app</button>
         {{ if .Sponsor }}<a href="https://www.leaf.cloud" class="hover:underline">Hosting sponsor: Leafcloud</a>{{ end }}
@@ -235,5 +237,6 @@
     {{ template "script.html" . }}
     {{ template "network.html" . }}
     {{ template "metadata.html" . }}
+    {{ template "statistics-footer.html" . }}
   </body>
 </html>
