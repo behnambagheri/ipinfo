@@ -6,6 +6,7 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
+  "vars": { "IPINFO_CACHE_SIZE": "1000", "IPINFO_PORT_LOOKUP": "true" },
   "routes": [{ "pattern": "ip.bea.sh", "custom_domain": true }],
   "assets": { "directory": "dist/geolite2-assets", "binding": "GEOIP_ASSETS", "run_worker_first": true },
   "observability": { "enabled": false }

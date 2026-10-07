@@ -1,6 +1,7 @@
 import { MMDBReader, PageCache } from './mmdb.mjs';
 import { decimalIP, privateIP } from './ip.mjs';
 import { geoIPAssets } from './geoip-assets.mjs';
+import { lookupCache } from './lookup-cache.mjs';
 
 const readers = new WeakMap();
 const MAX_TREE_BYTES = 64 * 1024 * 1024;
@@ -52,7 +53,10 @@ export async function lookupGeoIP(ip, env, context = {}) {
   if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address', country_ir: false };
   // Versioning prevents a new database release from reusing old geolocation results.
   const key = new Request(`https://ipinfo-cache.invalid/${env.GEOIP_RELEASE}/lookup-v2/${encodeURIComponent(ip)}`);
-  const cache = globalThis.caches?.default;
+  const boundedCache = lookupCache(env);
+  const saved = boundedCache?.get(ip);
+  if (saved) return saved;
+  const cache = boundedCache ? undefined : globalThis.caches?.default;
   const cached = await cache?.match(key);
   if (cached) return cached.json();
   const db = await databases(env);
@@ -60,6 +64,7 @@ export async function lookupGeoIP(ip, env, context = {}) {
   const asn = await db.ASN.get(ip);
   const countryRecord = city?.country ? city : await db.Country.get(ip);
   const data = geoIPRecord(ip, city, asn, countryRecord, env.GEOIP_RELEASE);
+  boundedCache?.set(ip, data);
   if (cache && context.waitUntil) context.waitUntil(cache.put(key, new Response(JSON.stringify(data), {
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
   })));

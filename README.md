@@ -24,9 +24,9 @@ wrap between hextets; copying still includes the complete address.
 | Runtime | Shared IPinfo JavaScript handler on Cloudflare | Shared IPinfo JavaScript handler on Node.js 24 |
 | Visitor IP | Cloudflare's `CF-Connecting-IP` | Connection peer; optionally trusted proxy headers |
 | Visitor geolocation | Cloudflare request metadata | Bundled GeoLite2 databases |
-| Explicit `?ip=` lookup | Owned GeoLite2 databases packaged as Worker Static Assets; results cached per database release for 24 hours | Local GeoLite2 lookup |
+| Explicit `?ip=` lookup | Owned GeoLite2 databases packaged as Worker Static Assets; up to 1,000 results per Worker isolate, expiring after 24 hours | Local GeoLite2 lookup |
 | Reverse DNS | Unavailable | Enabled by default |
-| TCP port checks | Unavailable (HTTP 501) | Opt-in via `IPINFO_PORT_LOOKUP=true` |
+| TCP port checks | Enabled on `ip.bea.sh` via `IPINFO_PORT_LOOKUP=true` | Opt-in via `IPINFO_PORT_LOOKUP=true` |
 
 The hosted Worker serves visitor metadata without external lookup requests.
 Explicit public-IP lookups read our own GeoLite2 ASN, City, and Country data
@@ -58,7 +58,7 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | `/user-agent` | Raw request User-Agent |
 | `/database-info` | Actual database build dates and update status |
 | `/healthz`, `/health` | Service health, build revision, and active database release |
-| `/port/<number>` | Container TCP check when enabled; otherwise HTTP 501 |
+| `/port/<number>` | TCP check when enabled; otherwise HTTP 501 |
 
 ```sh
 curl https://ip.bea.sh/json
@@ -78,6 +78,21 @@ returns IPv6 decimal addresses as strings to preserve their full precision.
 Its responses use `Cache-Control: no-store` to prevent sharing visitor data.
 The custom-lookup cache contains only public-IP geolocation, never visitor
 responses, headers, or user agents.
+
+The Worker configuration sets `IPINFO_CACHE_SIZE=1000` and
+`IPINFO_PORT_LOOKUP=true`. The result cache uses RAM in each Worker isolate;
+it evicts the least recently used result when full, expires results after
+24 hours, and invalidates them when the database release changes. Setting
+the cache size to `0` disables result caching. `IPINFO_CACHE_SIZE` and
+`IPINFO_PORT_LOOKUP` are also accepted and take precedence over the legacy
+`ECHOIP_` names.
+
+`/port/443` checks only the connecting visitor's IP, ignoring any `?ip=`
+parameter. Worker checks use a TCP handshake with a five-second timeout and
+close the socket afterward. Cloudflare blocks private destinations, its own
+IP ranges, and SMTP port 25; these return `status: "blocked"` rather than a
+claim that the destination port is closed. See the
+[Cloudflare TCP socket restrictions](https://developers.cloudflare.com/workers/runtime-apis/tcp-sockets/#considerations).
 
 API responses use the address visible on the connection, with no forced
 address-family override. `curl -4` and `curl -6` choose curl's connection
@@ -381,12 +396,44 @@ helm upgrade --install ipinfo ./charts/ipinfo \
 ```
 
 Quote indexed `--set` arguments in shells that expand brackets, or use a
-values file. Verify that the ingress overwrites the selected header and
+values file. Helm replaces the default hosts list when you override an indexed
+host; the chart defaults omitted or empty host paths to `/` with `pathType: Prefix`.
+Verify that the ingress overwrites the selected header and
 restrict direct access to the service. TLS, replicas, image pull secrets,
 resources, scheduling, and image tags/digests are configurable in
 `charts/ipinfo/values.yaml`. Use a SHA tag or digest for reproducible production
 deployments. The chart runs without a service-account token, privileges, or a
 writable root filesystem and includes startup, readiness, and liveness probes.
+
+### Updating an existing deployment
+
+Run these commands from the project directory after the new container image
+has finished publishing to GHCR. These examples use the `services` namespace;
+replace it with the namespace used when installing your release.
+
+```sh
+helm upgrade ipinfo ./charts/ipinfo \
+  --namespace services \
+  --reuse-values \
+  --wait --timeout 5m
+
+kubectl -n services rollout restart deployment/ipinfo-ipinfo
+kubectl -n services rollout status deployment/ipinfo-ipinfo --timeout=5m
+```
+
+`helm upgrade` applies the local chart and `--reuse-values` preserves the
+release's existing settings, including its ingress host and trusted headers.
+Proceed with the restart after the upgrade succeeds.
+
+By default, the chart uses the `latest` image tag with `imagePullPolicy: Always`.
+An upgrade that leaves the pod template unchanged does not restart existing
+pods. The explicit restart creates new pods that resolve the current `latest`
+image; the rollout status command waits for them to become ready. If only the
+published image changed, run just the two `kubectl` commands above.
+
+For a release pinned to a SHA tag or digest, update `image.tag` or `image.digest`
+through Helm instead. A configured digest takes precedence over the tag;
+restarting pods alone keeps the pinned image.
 
 ## GitHub Actions / GHCR
 

@@ -51,6 +51,6 @@ function expression(nodes) {
 }
 await mkdir('dist', { recursive: true });
 await writeFile('worker/render.generated.mjs', `import { escapeHTML, scriptString } from './render.mjs';\nexport const render = data => ${expression(root)};\n`);
-await build({ entryPoints: ['worker/index.mjs'], outfile: 'dist/worker.mjs', bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true });
+await build({ entryPoints: ['worker/cloudflare.mjs'], outfile: 'dist/worker.mjs', bundle: true, external: ['cloudflare:sockets'], format: 'esm', platform: 'browser', target: 'es2022', minify: true });
 await build({ entryPoints: ['server/index.mjs'], outfile: 'dist/server.mjs', bundle: true, format: 'esm', platform: 'node', target: 'node24', banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' } });
 console.log('Built Worker and container service from the shared IPinfo handler and templates.');
