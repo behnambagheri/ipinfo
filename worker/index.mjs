@@ -13,7 +13,7 @@ for (const a of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const b of 'ABCDEFGHIJKLMNOPQ
 const euCountries = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
 const securityHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.ipify.org https://api6.ipify.org; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'Access-Control-Allow-Origin': '*',
 };
 function response(body, status = 200, type = 'text/plain; charset=utf-8', head = false) {

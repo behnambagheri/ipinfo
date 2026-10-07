@@ -8,10 +8,14 @@ The HTML, query builder, copy actions, usage dialog, and OpenStreetMap view are
 shared by the Cloudflare Worker and self-hosted container. CSS is compiled and
 embedded; the browser does not download a CSS framework.
 
-The service reports the address used to connect to it, supporting both IPv4
-and IPv6. Long IPv6 addresses use smaller type and wrap between hextets;
-copying still includes the complete address. The Show my IP button appears
-when a manual lookup differs from the current connection's address.
+Auto keeps the original behavior: the address used to connect to this service.
+The optional IPv4 and IPv6 buttons leave the page unchanged when Auto already
+shows an address of the selected family. Otherwise they contact the corresponding
+[ipify endpoint](https://www.ipify.org/) from the browser only when clicked,
+then look up that address here. IPv6 requires a working IPv6 connection;
+if detection fails, the current page stays available with an explanatory message.
+The choice is not stored as a default. Long IPv6 addresses use smaller type and
+wrap between hextets; copying still includes the complete address.
 
 ## Deployment options
 
@@ -59,10 +63,11 @@ Its responses use `Cache-Control: no-store` to prevent sharing visitor data.
 The custom-lookup cache contains only public-IP geolocation, never visitor
 responses, headers, or user agents.
 
-IPv4 and IPv6 are detected from the connection; there is no address-family
-override or external IP discovery service. `curl -4` and `curl -6` choose
-curl's connection family, but a VPN or proxy can forward the request over a
-different family. The returned address is the one visible to this service.
+API responses use the address visible on the connection, with no forced
+address-family override. `curl -4` and `curl -6` choose curl's connection
+family, but a VPN or proxy can forward the request over a different family.
+The browser's optional IPv4/IPv6 buttons use ipify only when clicked; this
+browser behavior does not change the API's default connection detection.
 
 ## Local development
 

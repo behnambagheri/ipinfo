@@ -42,6 +42,17 @@
     <main class="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
       <section aria-labelledby="ip-title" class="card card-border bg-base-100 shadow-sm">
         <div class="card-body gap-5 p-5 sm:p-8">
+          <div id="family-controls" class="hidden flex-col gap-2">
+            <div class="flex flex-wrap items-center gap-3">
+              <span class="text-sm text-base-content/60">Your connection</span>
+              <div role="group" aria-label="IP address version" class="join">
+                <button type="button" data-ip-family="auto" aria-pressed="true" class="btn btn-sm join-item">Auto</button>
+                <button type="button" data-ip-family="4" aria-pressed="false" class="btn btn-sm join-item">IPv4</button>
+                <button type="button" data-ip-family="6" aria-pressed="false" class="btn btn-sm join-item">IPv6</button>
+              </div>
+            </div>
+            <p id="family-status" role="status" class="text-xs leading-relaxed text-base-content/60">Auto uses your current connection. IPv4/IPv6 detection uses ipify.</p>
+          </div>
           <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div class="min-w-0 flex-1">
               <h1 id="ip-title" class="text-sm text-base-content/60">{{ if .ExplicitLookup }}IP address lookup{{ else }}Your public IP address{{ end }}</h1>
