@@ -19,6 +19,79 @@ wrap between hextets; copying still includes the complete address.
 
 ## Deployment options
 
+### macOS app / Homebrew
+
+The native macOS app checks both `https://ip.bea.sh/json` and
+`https://ip.behnam.pro/json` concurrently using the Mac's current network
+connection. It shows only `ip.bea.sh` when both diagnostic results match,
+and shows both services when they differ. If either check fails, both service
+statuses remain visible; a timeout or error never counts as an identical result.
+Refresh after changing a VPN or proxy. Each panel supports copying its IP and
+opening the corresponding website.
+
+```sh
+brew install --cask behnambagheri/tap/ipinfo
+open -a IPinfo
+```
+
+Alternatively, add the tap first and use the short cask name:
+
+```sh
+brew tap behnambagheri/tap
+brew install --cask ipinfo
+```
+
+The tap is [behnambagheri/homebrew-tap](https://github.com/behnambagheri/homebrew-tap).
+This is a project-maintained cask, not a listing in the official Homebrew cask
+repository. Without adding the tap first, use the fully qualified install name.
+The unrelated `brew install ipinfo` formula is a different project.
+
+The universal app supports Apple Silicon and Intel Macs on macOS 13 or later.
+It requires no Node.js, Docker, local service, or local GeoLite2 databases.
+The app sends lookup requests only to the two named services and does not
+persist diagnostic results. Requests may be counted by each service's existing
+aggregate statistics. It does not force an address family, so the endpoints
+can observe different IPv4/IPv6 addresses or VPN/proxy routes.
+
+Equality compares normalized IP addresses plus all shared location and ASN
+fields: country, country code, Iran flag, city, region, region code, postal code,
+time zone, latitude, longitude, ASN, and network organization. A populated field
+on only one service counts as a difference; empty/null fields count as missing.
+Source, database-release identifiers, User-Agent, derived decimal IP, and
+container-only reverse DNS are excluded from equality checks.
+
+The initial release is ad-hoc signed and is not Apple-notarized. After attempting
+to open the downloaded app, macOS may require **System Settings → Privacy &
+Security → Open Anyway**. The cask preserves normal Gatekeeper/quarantine checks.
+A Developer ID certificate and notarization credentials are needed to remove
+that first-launch approval requirement.
+
+```sh
+brew upgrade --cask ipinfo
+brew uninstall --cask ipinfo
+```
+
+To build and test the app on macOS:
+
+```sh
+npm ci
+npm run package:macos
+dist/macos/IPinfo.app/Contents/MacOS/IPinfo --check
+open dist/macos/IPinfo.app
+```
+
+Packaging runs the Swift comparison tests, compiles both CPU architectures,
+generates the app icon from the existing logo, signs the bundle, and writes a
+ZIP, SHA-256 checksum, and ready-to-publish cask into `dist/macos/`. The optional
+`MACOS_SIGNING_IDENTITY` and `MACOS_NOTARY_PROFILE` environment variables select
+Developer ID signing and a preconfigured `notarytool` keychain profile.
+The `macOS app` GitHub Actions workflow builds pull requests and publishes
+version-tagged releases. Tags must match the numeric `package.json` version.
+After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
+`Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
+
+### Hosted service
+
 | | Cloudflare Worker | Container / Kubernetes |
 | --- | --- | --- |
 | Runtime | Shared IPinfo JavaScript handler on Cloudflare | Shared IPinfo JavaScript handler on Node.js 24 |

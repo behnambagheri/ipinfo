@@ -1,0 +1,21 @@
+cask "ipinfo" do
+  version "__VERSION__"
+  sha256 "__SHA256__"
+
+  url "https://github.com/behnambagheri/ipinfo/releases/download/v#{version}/IPinfo-#{version}-universal.zip"
+  name "IPinfo"
+  desc "Compare IP and network diagnostics from two services"
+  homepage "https://github.com/behnambagheri/ipinfo"
+
+  depends_on macos: ">= :ventura"
+
+  app "IPinfo.app"
+
+  uninstall quit: "sh.bea.ipinfo"
+
+  caveats <<~EOS
+    This release is ad-hoc signed and is not Apple-notarized.
+    macOS may require approval in System Settings > Privacy & Security
+    before its first launch.
+  EOS
+end

@@ -8,7 +8,8 @@
     "dev": "npm run build && node scripts/preview.mjs",
     "geoip:prepare": "node scripts/prepare-geolite2.mjs",
     "geoip:verify": "node scripts/verify-geolite2.mjs",
-    "start": "node server/index.mjs"
+    "start": "node server/index.mjs",
+    "package:macos": "node scripts/package-macos.mjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
