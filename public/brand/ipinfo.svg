@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" fill="none">
+  <title>IPinfo network locator</title>
+  <defs>
+    <linearGradient id="blue" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#337dff"/>
+      <stop offset="1" stop-color="#1742b8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="120" fill="url(#blue)"/>
+  <path d="M256 112c-62 0-112 48-112 109 0 80 112 179 112 179s112-99 112-179c0-61-50-109-112-109Z" fill="white"/>
+  <path d="M256 178v93m-47-46h94" stroke="#2563eb" stroke-width="16" stroke-linecap="round"/>
+  <circle cx="256" cy="225" r="29" fill="#1742b8" stroke="white" stroke-width="8"/>
+  <g fill="#2563eb">
+    <circle cx="256" cy="178" r="12"/>
+    <circle cx="209" cy="225" r="12"/>
+    <circle cx="303" cy="225" r="12"/>
+    <circle cx="256" cy="271" r="12"/>
+  </g>
+</svg>

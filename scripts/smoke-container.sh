@@ -13,6 +13,13 @@ curl -fsS "$origin/json?ip=8.8.8.8" | jq -e '.ip == "8.8.8.8" and .country_iso =
 curl -fsS "$origin/json?ip=2606:4700:4700::1111" | jq -e '.ip == "2606:4700:4700::1111"'
 curl -fsS -A 'Mozilla/5.0' -H 'Accept: text/html' "$origin/" > /tmp/ipinfo-container.html
 grep -Fq 'IPinfo — bea.sh' /tmp/ipinfo-container.html
+grep -Fq 'href="/manifest.webmanifest"' /tmp/ipinfo-container.html
+curl -fsS "$origin/manifest.webmanifest" | jq -e '.display == "standalone" and .start_url == "/" and (.icons | length == 3)'
+curl -fsS "$origin/sw.js" | grep -Fq 'ipinfo-assets-'
+curl -fsS "$origin/offline.html" | grep -Fq 'You’re offline'
+curl -fsS "$origin/favicon.ico" -o /tmp/ipinfo-container.ico
+test -s /tmp/ipinfo-container.ico
+curl -fsSI "$origin/icons/icon-192.png" | grep -iq 'content-type: image/png'
 actual="$(curl -fsS "$origin/ip")"
 spoofed="$(curl -fsS -H 'X-Forwarded-For: 203.0.113.10' -H 'X-Real-IP: 203.0.113.20' "$origin/ip")"
 test "$actual" = "$spoofed"

@@ -1,6 +1,7 @@
 import { render } from './render.generated.mjs';
 import { templateData } from './render.mjs';
 import { normalizeIP, decimalIP, privateIP } from './ip.mjs';
+import { assets } from './assets.generated.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_eu', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -13,7 +14,7 @@ for (const a of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const b of 'ABCDEFGHIJKLMNOPQ
 const euCountries = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
 const securityHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.ipify.org https://api6.ipify.org; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; worker-src 'self'; manifest-src 'self'; connect-src 'self' https://api.ipify.org https://api6.ipify.org; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'Access-Control-Allow-Origin': '*',
 };
 function response(body, status = 200, type = 'text/plain; charset=utf-8', head = false) {
@@ -79,7 +80,10 @@ export async function handleRequest(request, env = {}, context = {}, fetcher = f
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
   if (url.pathname === '/healthz') return json({ status: 'ok', revision: env.BUILD_REVISION }, 200, head);
-  if (url.pathname === '/favicon.ico') return new Response(null, { status: 204, headers: securityHeaders });
+  const asset = assets.get(url.pathname);
+  if (asset) return new Response(head ? null : Uint8Array.from(atob(asset.body), char => char.charCodeAt(0)), {
+    headers: { ...securityHeaders, 'Content-Type': asset.type, 'Cache-Control': 'no-cache', ...(url.pathname === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) },
+  });
   if (url.pathname.startsWith('/port/')) return json({ error: 'Port testing is available only in the self-hosted container.' }, 501, head);
   if (!['/', '/json', '/coordinates'].includes(url.pathname) && !fields.has(url.pathname)) return json({ error: 'Not found' }, 404, head);
   const explicit = Boolean(url.searchParams.get('ip')?.trim());

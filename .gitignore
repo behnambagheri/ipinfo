@@ -1,6 +1,10 @@
 node_modules/
 dist/
 worker/render.generated.mjs
+worker/assets.generated.mjs
+public/icons/
+public/favicon.ico
+public/offline.html
 html/styles.html
 .wrangler/
 .env*

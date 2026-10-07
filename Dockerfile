@@ -1,29 +1,35 @@
 # syntax=docker/dockerfile:1
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS echoip
-ARG TARGETOS
-ARG TARGETARCH
-ARG ECHOIP_REV=27646b3c4c39041baf8734063e87e71d46f53362
-ARG ECHOIP_SHA256=7f40c90364a8be735952aa7380cb92f36a15f732cb64c9fc29bea3bd4494c3e7
-RUN apk add --no-cache curl
-WORKDIR /src
-RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${ECHOIP_REV}" -o /tmp/echoip.tar.gz \
-    && echo "${ECHOIP_SHA256}  /tmp/echoip.tar.gz" | sha256sum -c - \
-    && tar -xzf /tmp/echoip.tar.gz --strip-components=1
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/echoip ./cmd/echoip
-
-FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
-RUN apk add --no-cache ca-certificates curl jq
-COPY scripts/download-geolite2.sh /usr/local/bin/download-geolite2
-RUN sh /usr/local/bin/download-geolite2 /data/geolite2
-
 FROM --platform=$BUILDPLATFORM node:24-alpine AS ui
 WORKDIR /build
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY html/ ./html/
 COPY ui/styles.css ./ui/styles.css
-COPY scripts/embed-styles.mjs ./scripts/embed-styles.mjs
-RUN npm run build:css
+COPY public/ ./public/
+COPY scripts/embed-styles.mjs scripts/build-assets.mjs ./scripts/
+RUN npm run build:css && node scripts/build-assets.mjs
+
+FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS echoip
+ARG TARGETOS
+ARG TARGETARCH
+ARG ECHOIP_REV=27646b3c4c39041baf8734063e87e71d46f53362
+ARG ECHOIP_SHA256=7f40c90364a8be735952aa7380cb92f36a15f732cb64c9fc29bea3bd4494c3e7
+RUN apk add --no-cache curl patch
+WORKDIR /src
+RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${ECHOIP_REV}" -o /tmp/echoip.tar.gz \
+    && echo "${ECHOIP_SHA256}  /tmp/echoip.tar.gz" | sha256sum -c - \
+    && tar -xzf /tmp/echoip.tar.gz --strip-components=1
+COPY --from=ui /build/dist/public/ ./http/pwa-assets/
+COPY scripts/echoip-pwa.go ./http/pwa.go
+COPY scripts/echoip-pwa_test.go ./http/pwa_test.go
+COPY scripts/echoip-pwa.patch /tmp/echoip-pwa.patch
+RUN patch -p1 < /tmp/echoip-pwa.patch && go test ./http
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/echoip ./cmd/echoip
+
+FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
+RUN apk add --no-cache ca-certificates curl jq
+COPY scripts/download-geolite2.sh /usr/local/bin/download-geolite2
+RUN sh /usr/local/bin/download-geolite2 /data/geolite2
 
 FROM alpine:3.23
 RUN apk add --no-cache ca-certificates

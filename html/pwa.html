@@ -1,0 +1,64 @@
+<dialog id="install-dialog" class="modal" aria-labelledby="install-title">
+  <div class="modal-box max-w-md">
+    <div class="mb-5 flex items-center gap-3">
+      <img src="/brand/ipinfo.svg" width="48" height="48" alt="" class="size-12" />
+      <div><h2 id="install-title" class="text-lg font-semibold">Install IPinfo</h2><p class="text-sm text-base-content/60">Your network, one tap away.</p></div>
+    </div>
+    <p id="install-instructions" class="text-sm leading-relaxed">Use your browser’s menu to install IPinfo or add it to your home screen. In Safari on iPhone or iPad, tap Share, then Add to Home Screen. On Mac, choose File → Add to Dock.</p>
+    <p class="mt-4 text-xs leading-relaxed text-base-content/60">IP and location checks need an internet connection.</p>
+    <div class="modal-action"><form method="dialog"><button class="btn">Got it</button></form></div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button aria-label="Close install instructions">Close</button></form>
+</dialog>
+<script>
+  (() => {
+    "use strict";
+    const buttons = document.querySelectorAll("[data-install-app]");
+    const dialog = document.getElementById("install-dialog");
+    const standalone = matchMedia("(display-mode: standalone)");
+    let installPrompt;
+    let installed = false;
+
+    function updateButton() {
+      buttons.forEach(button => button.classList.toggle("hidden", installed || standalone.matches || navigator.standalone === true || !window.isSecureContext));
+    }
+    updateButton();
+    standalone.addEventListener("change", updateButton);
+
+    window.addEventListener("beforeinstallprompt", event => {
+      event.preventDefault();
+      installPrompt = event;
+      updateButton();
+    });
+    window.addEventListener("appinstalled", () => {
+      installed = true;
+      installPrompt = undefined;
+      dialog.close();
+      updateButton();
+    });
+
+    buttons.forEach(button => button.addEventListener("click", async () => {
+      if (!installPrompt) {
+        dialog.showModal();
+        return;
+      }
+      const prompt = installPrompt;
+      installPrompt = undefined;
+      buttons.forEach(button => { button.disabled = true; });
+      try {
+        await prompt.prompt();
+        await prompt.userChoice;
+      } catch {
+        dialog.showModal();
+      } finally {
+        buttons.forEach(button => { button.disabled = false; });
+      }
+    }));
+
+    if ("serviceWorker" in navigator && window.isSecureContext) {
+      navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {
+        // Browsing still works when storage or service workers are blocked.
+      });
+    }
+  })();
+</script>

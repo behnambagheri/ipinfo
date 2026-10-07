@@ -1,0 +1,5 @@
+--- a/http/http.go
++++ b/http/http.go
+@@ -517 +517 @@
+-	return r.Handler()
++	return withPWAAssets(r.Handler())

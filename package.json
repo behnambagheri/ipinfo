@@ -3,11 +3,12 @@
   "private": true,
   "scripts": {
     "build:css": "node scripts/embed-styles.mjs",
-    "build": "npm run build:css && node scripts/build-worker.mjs",
+    "build": "npm run build:css && node scripts/build-assets.mjs && node scripts/build-worker.mjs",
     "test": "node --test",
     "dev": "npm run build && node scripts/preview.mjs"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@tailwindcss/postcss": "4.3.3",
     "daisyui": "5.7.47",
     "esbuild": "0.28.2",

@@ -7,5 +7,5 @@ createServer(async (incoming, outgoing) => {
   const request = new Request(`http://localhost:8787${incoming.url}`, { method: incoming.method, headers });
   const result = await handleRequest(request);
   outgoing.writeHead(result.status, Object.fromEntries(result.headers));
-  outgoing.end(await result.text());
+  outgoing.end(Buffer.from(await result.arrayBuffer()));
 }).listen(8787, '127.0.0.1', () => console.log('Preview: http://localhost:8787'));
