@@ -1,0 +1,9 @@
+--- a/http/http.go
++++ b/http/http.go
+@@ -394,0 +395 @@
++		NetworkConfig  string
+@@ -406,0 +408 @@
++		networkConfig(),
+@@ -517 +519 @@
+-	return r.Handler()
++	return s.familyHandler(r.Handler())

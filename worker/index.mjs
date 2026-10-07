@@ -1,6 +1,7 @@
 import { render } from './render.generated.mjs';
 import { templateData } from './render.mjs';
 import { normalizeIP, decimalIP, privateIP } from './ip.mjs';
+import { familyDecision, networkSettings } from './family.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_eu', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -13,7 +14,7 @@ for (const a of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') for (const b of 'ABCDEFGHIJKLMNOPQ
 const euCountries = new Set('AT BE BG HR CY CZ DK EE FI FR DE GR HU IE IT LV LT LU MT NL PL PT RO SK SI ES SE'.split(' '));
 const securityHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self' https://api.ipify.org https://api6.ipify.org; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   'Access-Control-Allow-Origin': '*',
 };
 function response(body, status = 200, type = 'text/plain; charset=utf-8', head = false) {
@@ -66,13 +67,23 @@ export async function handleRequest(request, env = {}, context = {}, fetcher = f
   if (!['/', '/json', '/coordinates'].includes(url.pathname) && !fields.has(url.pathname)) return json({ error: 'Not found' }, 404, head);
   const explicit = Boolean(url.searchParams.get('ip')?.trim());
   // Cloudflare overwrites CF-Connecting-IP at the edge. Never trust forwarded headers.
-  const ip = normalizeIP(explicit ? url.searchParams.get('ip').trim() : request.headers.get('CF-Connecting-IP'));
+  const visitorIP = normalizeIP(request.headers.get('CF-Connecting-IP'));
+  const decision = familyDecision(url, visitorIP, env);
+  if (decision?.error) return json({ error: decision.error }, decision.status, head);
+  if (decision?.location) return new Response(null, { status: decision.status, headers: { ...securityHeaders, Location: decision.location } });
+  const ip = explicit ? normalizeIP(url.searchParams.get('ip').trim()) : visitorIP;
   if (!ip) return json({ error: explicit ? 'Provide a valid IPv4 or IPv6 address.' : 'Client IP is unavailable.' }, explicit ? 400 : 503, head);
   let data;
   try { data = explicit ? await lookup(ip, context, fetcher) : visitorData(ip, request); }
   catch { return json({ error: 'IP lookup is temporarily unavailable. Please try again later.' }, 502, head); }
   if (url.pathname === '/json' || (url.pathname === '/' && request.headers.get('accept')?.includes('application/json'))) return json(data, 200, head);
-  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) return response(render(templateData(data, request, explicit)), 200, 'text/html; charset=utf-8', head);
+  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) {
+    const settings = networkSettings(env);
+    const result = response(render(templateData(data, request, explicit, settings)), 200, 'text/html; charset=utf-8', head);
+    const origins = [...new Set(Object.values(settings).filter(Boolean))].join(' ');
+    result.headers.set('Content-Security-Policy', securityHeaders['Content-Security-Policy'].replace("connect-src 'self'", `connect-src 'self' ${origins}`));
+    return result;
+  }
   if (url.pathname === '/coordinates') return Number.isFinite(data.latitude) && Number.isFinite(data.longitude) ? response(`${data.latitude},${data.longitude}\n`, 200, undefined, head) : response('Location data is unavailable.\n', 404, undefined, head);
   const value = data[fields.get(url.pathname) || 'ip'];
   return value !== undefined && value !== null ? response(`${value}\n`, 200, undefined, head) : response('Data is unavailable for this address.\n', 404, undefined, head);

@@ -16,7 +16,9 @@
     const buttons = [...controls.querySelectorAll("button[data-ip-family]")];
     const status = document.getElementById("family-status");
     const currentURL = new URL(window.location.href);
-    const selected = currentURL.searchParams.has("ip") ? currentURL.searchParams.get("family") : "auto";
+    const settings = JSON.parse({{ .NetworkConfig }});
+    const manualLookup = currentURL.searchParams.has("ip");
+    const selected = manualLookup ? null : currentURL.searchParams.get("family") || "auto";
     const ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
     const ipv6 = /^[\da-f:]+$/i;
     const matchesFamily = (value, family) => typeof value === "string" && (family === "4"
@@ -24,7 +26,7 @@
       : ipv6.test(value) && value.includes(":"));
     const activeFamily = ["4", "6"].includes(selected) && matchesFamily(ip, selected) ? selected : selected === "auto" ? "auto" : null;
     const showMyIP = document.getElementById("show-my-ip");
-    if (showMyIP && !["4", "6"].includes(activeFamily)) {
+    if (showMyIP && manualLookup) {
       // Compare against this service's connection IP, not another discovery provider.
       async function updateReturnLink() {
         try {
@@ -43,8 +45,8 @@
       }
       updateReturnLink();
     }
-    // Family-button navigation marks the visitor's detected address. Manual lookups do not.
-    if (currentURL.searchParams.has("ip") && !["4", "6"].includes(activeFamily)) return;
+    // Explicit lookups always describe a specified address, not a connection choice.
+    if (manualLookup) return;
     buttons.forEach((button) => {
       const active = button.dataset.ipFamily === activeFamily;
       button.setAttribute("aria-pressed", String(active));
@@ -60,17 +62,15 @@
     buttons.forEach((button) => button.addEventListener("click", async () => {
       const family = button.dataset.ipFamily;
       // Auto already has this address: leave the page and connection metadata untouched.
-      if (activeFamily === "auto" && ["4", "6"].includes(family) && matchesFamily(ip, family)) return;
+      if (family === activeFamily || (activeFamily === "auto" && ["4", "6"].includes(family) && matchesFamily(ip, family))) return;
       pending?.abort();
       if (family === "auto") {
-        window.location.assign(new URL("/", currentURL.origin).href);
+        window.location.assign(new URL("/", settings.auto || currentURL.origin).href);
         return;
       }
-      function showAddress(value) {
-        const target = new URL("/", currentURL.origin);
-        target.searchParams.set("ip", value);
-        target.searchParams.set("family", family);
-        window.location.assign(target.href);
+      if (!settings[`ipv${family}`]) {
+        status.textContent = `IPv${family} switching is unavailable on this deployment. Auto still shows your current connection.`;
+        return;
       }
       const controller = new AbortController();
       pending = controller;
@@ -79,15 +79,20 @@
       controls.setAttribute("aria-busy", "true");
       status.textContent = `Detecting your IPv${family} address…`;
       try {
-        const endpoint = family === "4" ? "https://api.ipify.org?format=json" : "https://api6.ipify.org?format=json";
-        const response = await fetch(endpoint, { signal: controller.signal, credentials: "omit", cache: "no-store", redirect: "error", referrerPolicy: "no-referrer" });
-        if (!response.ok) throw new Error("Detection service unavailable");
+        const endpoint = new URL("/json", currentURL.origin);
+        endpoint.searchParams.set("family", family);
+        const response = await fetch(endpoint.href, { signal: controller.signal, credentials: "omit", cache: "no-store", redirect: "follow", referrerPolicy: "no-referrer" });
+        if (!response.ok) throw new Error("The selected connection is unavailable");
         const result = await response.json();
         if (!matchesFamily(result.ip, family)) throw new Error("Unexpected address version");
         if (controller.signal.aborted) return;
-        showAddress(result.ip);
+        const target = new URL(response.url);
+        // Only follow this deployment's configured first-party origin.
+        if (![currentURL.origin, settings[`ipv${family}`]].includes(target.origin)) throw new Error("Unexpected endpoint");
+        target.pathname = "/";
+        window.location.assign(target.href);
       } catch {
-        if (pending === controller) status.textContent = `Could not detect your IPv${family} address. Your network may not support IPv${family}, or ipify could not be reached. Auto is still available.`;
+        if (pending === controller) status.textContent = `Could not connect over IPv${family}. Your network or this deployment may not support it. Auto is still available.`;
       } finally {
         clearTimeout(timeout);
         if (pending === controller) {

@@ -25,6 +25,12 @@ trustedHeaders: ""
 cacheSize: 0
 portLookup: false
 reverseLookup: true
+# Origins must reach this service through family-only client-facing DNS.
+network:
+  autoURL: ""
+  ipv4URL: ""
+  ipv6URL: ""
+  requiredFamily: ""
 resources:
   requests:
     cpu: 50m

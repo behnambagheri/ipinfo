@@ -38,7 +38,7 @@ for (const match of source.matchAll(/{{\s*(.*?)\s*}}/gs)) {
     if (stack.length === 1) throw new Error('Unmatched end');
     stack.pop();
   } else {
-    current.children.push(`${token === '.JSON' ? 'scriptString' : 'escapeHTML'}(${field(token)})`);
+    current.children.push(`${['.JSON', '.NetworkConfig'].includes(token) ? 'scriptString' : 'escapeHTML'}(${field(token)})`);
   }
   cursor = match.index + match[0].length;
 }

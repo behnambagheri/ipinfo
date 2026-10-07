@@ -1,3 +1,4 @@
+{{- $network := .Values.network | default dict -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -52,19 +53,27 @@ spec:
               value: {{ .Values.portLookup | quote }}
             - name: ECHOIP_REVERSE_LOOKUP
               value: {{ .Values.reverseLookup | quote }}
+            - name: IPINFO_AUTO_URL
+              value: {{ $network.autoURL | default "" | quote }}
+            - name: IPINFO_IPV4_URL
+              value: {{ $network.ipv4URL | default "" | quote }}
+            - name: IPINFO_IPV6_URL
+              value: {{ $network.ipv6URL | default "" | quote }}
+            - name: IPINFO_REQUIRED_FAMILY
+              value: {{ $network.requiredFamily | default "" | quote }}
           startupProbe:
             httpGet:
-              path: /ip
+              path: /health
               port: http
             failureThreshold: 30
             periodSeconds: 2
           readinessProbe:
             httpGet:
-              path: /ip
+              path: /health
               port: http
           livenessProbe:
             httpGet:
-              path: /ip
+              path: /health
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

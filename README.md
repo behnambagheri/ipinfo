@@ -10,12 +10,12 @@ embedded; the browser does not download a CSS framework.
 
 Auto keeps the original behavior: the address used to connect to this service.
 The optional IPv4 and IPv6 buttons leave the page unchanged when Auto already
-shows an address of the selected family. Otherwise they contact the corresponding
-[ipify endpoint](https://www.ipify.org/) from the browser only when clicked,
-then look up that address here. IPv6 requires a working IPv6 connection;
-if detection fails, the current page stays available with an explanatory message.
-The choice is not stored as a default. Long IPv6 addresses use smaller type and
-wrap between hextets; copying still includes the complete address.
+shows an address of the selected family. Switching uses only this deployment's
+configured family endpoints; no external IP discovery service is contacted.
+Manual address lookups hide the selector. If switching is unavailable, the
+current page stays available with an explanatory message. The choice is not
+stored as a default. Long IPv6 addresses use smaller type and wrap between
+hextets; copying still includes the complete address.
 
 ## Deployment options
 
@@ -54,8 +54,9 @@ curl https://ip.bea.sh/city
 curl https://ip.bea.sh/coordinates
 curl https://ip.bea.sh/asn
 curl https://ip.bea.sh/asn-org
-curl -4 https://ip.bea.sh/ip
-curl -6 https://ip.bea.sh/ip
+curl -fsSL 'https://ip.bea.sh/ip?family=4'
+curl -fsSL 'https://ip.bea.sh/json?family=6'
+curl -fsS 'https://ip.bea.sh/json?family=auto'
 ```
 
 A browser requesting `text/html` gets the interface at `/`. API clients get
@@ -64,6 +65,67 @@ returns IPv6 decimal addresses as strings to preserve their full precision.
 Its responses use `Cache-Control: no-store` to prevent sharing visitor data.
 The custom-lookup cache contains only public-IP geolocation, never visitor
 responses, headers, or user agents.
+
+### Selecting an address family
+
+`family=auto` (or no parameter) preserves the connection's address. `family=4`
+and `family=6` require IPv4 and IPv6 respectively, on `/`, `/ip`, `/json`, and
+individual metadata endpoints. A matching connection responds immediately.
+A mismatch redirects the **client** with HTTP 307 to the configured family-only
+origin, retaining the path and query. Use `curl -L` to follow the redirect.
+The server never fetches an IP discovery service or derives an IPv4 address
+from an unrelated IPv6 address. The result is the public address seen by the
+service, which may belong to a VPN, proxy, or NAT gateway.
+
+| Condition | HTTP status |
+| --- | --- |
+| Requested family matches the connection | 200, subject to the normal endpoint result |
+| Configured alternate-family origin | 307; follow with `-L` |
+| No usable alternate-family origin | 503 with a JSON error |
+| Redirected or dedicated endpoint still receives the wrong family | 409 with a JSON error; no redirect loop |
+| Invalid/duplicate `family`, or `family=4/6` combined with `ip` | 400 with a JSON error |
+
+**Hosted Cloudflare limitation:** `ip.bea.sh` currently supports strict matching
+but cannot switch between families. Cloudflare rejected this zone's per-record
+IPv4-only/IPv6-only settings (error 9227). A DNS-only alias to a Cloudflare
+family endpoint was also rejected before the Worker (error 1014), and was
+removed. Therefore a request for the opposite family returns 503. No alternate
+family URL is configured in production. This is not a complete cross-family
+switching deployment; Cloudflare must enable suitable family-only routing
+before that capability can be enabled on this zone.
+
+Cloudflare's [DNS record settings](https://developers.cloudflare.com/api/resources/dns/subresources/records/methods/create/)
+describe `ipv4_only` and `ipv6_only`, but they are not available to every zone.
+[Worker routes](https://developers.cloudflare.com/workers/configuration/routing/routes/)
+require proxied DNS, which otherwise advertises both address families. Do not
+disable IPv6 zone-wide to implement a single service's selector.
+
+`curl -4` and `curl -6` control curl's connection family. A VPN or proxy can
+forward the request over a different family; the service cannot recover an
+unobserved address from that request. `family=4/6` prevents returning the wrong
+family in that situation.
+
+For deployments with suitable client-facing endpoints, configure these origins
+(no credentials, path, query, or fragment):
+
+| Variable | Purpose | Default |
+| --- | --- | --- |
+| `IPINFO_AUTO_URL` | Main origin used by the browser's Auto button | Current origin |
+| `IPINFO_IPV4_URL` | Same service via A-only DNS / IPv4 transport | Unconfigured |
+| `IPINFO_IPV6_URL` | Same service via AAAA-only DNS / IPv6 transport | Unconfigured |
+| `IPINFO_REQUIRED_FAMILY` | Optional `4` or `6` on a dedicated family deployment | No constraint |
+
+An HTTPS request only redirects to HTTPS. Each family endpoint must serve the
+same application and preserve the real connection IP. The DNS and entire proxy
+path must enforce the family, not merely the origin server's address. The
+client needs connectivity to the selected family. IPv6-only clients using DNS64
+and NAT64 may still reach an A-only endpoint through an IPv4 gateway; the
+returned IPv4 is that gateway's public address.
+
+Worker deployments use Wrangler `vars` for these settings. Add each usable
+family hostname to Wrangler `routes` as well, so automatic GitHub deployments
+retain its routing. The browser preflights the same first-party API, validates
+the returned family, and navigates to that endpoint for its connection metadata.
 
 ## Local development
 
@@ -191,6 +253,25 @@ resources, scheduling, and image tags/digests are configurable in
 `charts/ipinfo/values.yaml`. Use a SHA tag or digest for reproducible production
 deployments. The chart runs without a service-account token, privileges, or a
 writable root filesystem and includes startup, readiness, and liveness probes.
+
+### Family endpoint configuration
+
+The chart exposes the same API settings. For an ingress that already serves
+the main, A-only, and AAAA-only hostnames, add this to its values file:
+
+```yaml
+network:
+  autoURL: https://ipinfo.example.com
+  ipv4URL: https://ipv4.ipinfo.example.com
+  ipv6URL: https://ipv6.ipinfo.example.com
+  requiredFamily: ""
+```
+
+Configure those hosts and certificates in `ingress.hosts` / `ingress.tls`.
+The chart does not create DNS or add IPv6 connectivity to your cluster. A
+separate family deployment can set `network.requiredFamily` to `"4"` or `"6"`.
+Only trust client-IP headers overwritten by your own ingress. These are chart
+configuration instructions; the hosted service remains on Cloudflare.
 
 ## GitHub Actions / GHCR
 

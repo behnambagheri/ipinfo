@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { runInNewContext } from 'node:vm';
 
 const script = (await readFile(new URL('../html/network.html', import.meta.url), 'utf8')).replace(/^<script>\s*|\s*<\/script>\s*$/g, '');
-function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Unexpected background request'); }) {
+function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Unexpected background request'); }, settings = { auto: 'https://ip.bea.sh', ipv4: 'https://v4.example.com', ipv6: 'https://v6.example.com' }) {
   function element(dataset = {}) {
     const classes = new Set();
     return { dataset, classes, textContent: '', disabled: false, attributes: {}, listeners: {},
@@ -25,13 +25,13 @@ function page(ip = '8.8.8.8', path = '/', fetcher = () => { throw new Error('Une
   }
   const navigations = [];
   const document = { getElementById: id => elements[id], createTextNode: textContent => ({ textContent }), createElement: tagName => ({ tagName, textContent: '' }) };
-  runInNewContext(script, { document, window: { location: { href: `https://ip.bea.sh${path}`, assign: value => navigations.push(value) } }, URL, AbortController, AbortSignal, setTimeout, clearTimeout, fetch: fetcher });
+  runInNewContext(script.replace("{{ .NetworkConfig }}", JSON.stringify(JSON.stringify(settings))), { document, window: { location: { href: `https://ip.bea.sh${path}`, assign: value => navigations.push(value) } }, URL, AbortController, AbortSignal, setTimeout, clearTimeout, fetch: fetcher });
   return { elements, buttons, navigations, click: family => buttons.find(button => button.dataset.ipFamily === family).listeners.click() };
 }
 test('Auto preserves the default without detection requests and clears a visitor family selection', async () => {
   const initial = page();
   assert.equal(initial.buttons[0].attributes['aria-pressed'], 'true');
-  const lookup = page('1.1.1.1', '/?ip=1.1.1.1&family=4');
+  const lookup = page('1.1.1.1', '/?family=4');
   await lookup.click('auto');
   assert.equal(lookup.navigations[0], 'https://ip.bea.sh/');
 });
@@ -46,7 +46,7 @@ test('manual IPv4 and IPv6 lookups hide the selector without changing address re
   }
 });
 test('invalid family markers cannot turn an explicit lookup into a visitor family selection', () => {
-  for (const marker of ['auto', 'invalid', '6']) {
+  for (const marker of ['auto', 'invalid', '4', '6']) {
     const browser = page('1.1.1.1', `/?ip=1.1.1.1&family=${marker}`);
     assert.equal(browser.elements['family-controls'].classes.has('hidden'), true);
     assert.equal(browser.buttons.every(button => !button.listeners.click), true);
@@ -67,30 +67,32 @@ test('Show my IP appears only when a manual lookup differs from the connection I
 });
 test('Show my IP stays hidden during a visitor family selection without a connection check', () => {
   let requests = 0;
-  const browser = page('2606:4700:4700::1111', '/?ip=2606:4700:4700::1111&family=6', () => { requests++; });
+  const browser = page('2606:4700:4700::1111', '/?family=6', () => { requests++; });
   assert.equal(requests, 0);
-  assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), true);
+  assert.equal(browser.elements['show-my-ip']?.classes.has('hidden') ?? true, true);
   assert.equal(browser.elements['family-controls'].classes.has('flex'), true);
 });
 test('an unavailable or invalid connection response does not reveal Show my IP', async () => {
   for (const fetcher of [async () => { throw new Error('Offline'); }, async () => new Response('Unavailable', { status: 503 }), async () => new Response('Not an IP')]) {
     const browser = page('1.1.1.1', '/?ip=1.1.1.1', fetcher);
     await new Promise(setImmediate);
-    assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), true);
+    assert.equal(browser.elements['show-my-ip']?.classes.has('hidden') ?? true, true);
   }
 });
-test('IPv4 detection uses the browser-only IPv4 endpoint and loads the detected address on this site', async () => {
+test('IPv4 selection uses this service API and navigates only to its configured endpoint', async () => {
   let called = false;
   const browser = page('::1', '/', async (url, options) => {
     called = true;
-    assert.equal(url, 'https://api.ipify.org?format=json');
+    assert.equal(url, 'https://ip.bea.sh/json?family=4');
     assert.equal(options.credentials, 'omit');
     assert.equal(options.referrerPolicy, 'no-referrer');
-    return Response.json({ ip: '8.8.4.4' });
+    const response = Response.json({ ip: '8.8.4.4' });
+    Object.defineProperty(response, 'url', { value: 'https://v4.example.com/json?family=4&_family_redirect=4' });
+    return response;
   });
   assert.equal(called, false);
   await browser.click('4');
-  assert.equal(browser.navigations[0], 'https://ip.bea.sh/?ip=8.8.4.4&family=4');
+  assert.equal(browser.navigations[0], 'https://v4.example.com/?family=4&_family_redirect=4');
 });
 for (const [family, ip] of [['4', '8.8.8.8'], ['6', '2a05:d016:132:9300:ee44:7663:fbeb:cfa8']]) {
   test(`clicking IPv${family} when Auto already has IPv${family} makes no request, navigation, or UI change`, async () => {
@@ -115,15 +117,12 @@ for (const [family, ip] of [['4', '8.8.8.8'], ['6', '2a05:d016:132:9300:ee44:766
 }
 test('IPv6 preserves the full address and wraps at hextet boundaries', async () => {
   const ip = '2a05:d016:132:9300:ee44:7663:fbeb:cfa8';
-  const browser = page(ip, `/?ip=${ip}&family=6`, async url => {
-    assert.equal(url, 'https://api6.ipify.org?format=json');
-    return Response.json({ ip });
-  });
+  const browser = page(ip, '/?family=6');
   assert.equal(browser.elements['ip-address'].textContent, ip);
   assert.equal(browser.elements['ip-address'].children.filter(node => node.tagName === 'wbr').length, 7);
   assert.equal(browser.elements['ip-title'].textContent, 'Your IPv6 address');
   await browser.click('6');
-  assert.equal(new URL(browser.navigations[0]).searchParams.get('ip'), ip);
+  assert.equal(browser.navigations.length, 0);
   assert.equal(browser.buttons[2].attributes['aria-pressed'], 'true');
 });
 test('missing IPv6 or a wrong address version keeps the current page usable', async () => {
@@ -131,9 +130,26 @@ test('missing IPv6 or a wrong address version keeps the current page usable', as
     const browser = page('8.8.8.8', '/', fetcher);
     await browser.click('6');
     assert.equal(browser.navigations.length, 0);
-    assert.match(browser.elements['family-status'].textContent, /Could not detect your IPv6 address/);
+    assert.match(browser.elements['family-status'].textContent, /Could not connect over IPv6/);
     assert.equal(browser.buttons.every(button => !button.disabled), true);
     assert.equal(browser.elements['family-controls'].attributes['aria-busy'], 'false');
     assert.equal(browser.buttons[0].attributes['aria-pressed'], 'true');
   }
+});
+
+test('unconfigured switching makes no request and preserves the current address', async () => {
+  const browser = page('::1', '/', () => { throw new Error('Must not fetch'); }, {});
+  await browser.click('4');
+  assert.equal(browser.navigations.length, 0);
+  assert.match(browser.elements['family-status'].textContent, /IPv4 switching is unavailable/);
+});
+test('unexpected redirect targets cannot navigate away from the configured service', async () => {
+  const browser = page('::1', '/', async () => {
+    const response = Response.json({ ip: '8.8.8.8' });
+    Object.defineProperty(response, 'url', { value: 'https://untrusted.example/json?family=4' });
+    return response;
+  });
+  await browser.click('4');
+  assert.equal(browser.navigations.length, 0);
+  assert.match(browser.elements['family-status'].textContent, /Could not connect/);
 });
