@@ -34,6 +34,16 @@ async function databases(env) {
   return state.promise;
 }
 
+export async function databaseInfo(env) {
+  const db = await databases(env);
+  return { source: 'GeoLite2', release: env.GEOIP_RELEASE, databases: Object.fromEntries(
+    ['ASN', 'City', 'Country'].flatMap(name => {
+      const value = db[name].meta.buildEpoch;
+      return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? [[name, new Date(value).toISOString()]] : [];
+    }),
+  ) };
+}
+
 export async function lookupGeoIP(ip, env, context = {}) {
   if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address' };
   // Versioning prevents a new database release from reusing old geolocation results.

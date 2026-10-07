@@ -1,0 +1,32 @@
+<script>
+  // Keep this partial after index.html alphabetically: echoip renders the first template.
+  (() => {
+    "use strict";
+    const section = document.getElementById("database-updates");
+    async function loadDates() {
+      try {
+        const response = await fetch(new URL("/database-info", window.location.origin), {
+          signal: AbortSignal.timeout(4000), cache: "no-store", redirect: "error",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) return;
+        const info = await response.json();
+        const format = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
+        let available = false;
+        section.querySelectorAll("time[data-database]").forEach((element) => {
+          const value = info.databases?.[element.dataset.database];
+          const date = new Date(value || "");
+          if (!Number.isFinite(date.getTime())) return;
+          element.dateTime = date.toISOString();
+          element.textContent = format.format(date);
+          element.title = `Database built ${date.toISOString()} (UTC)`;
+          available = true;
+        });
+        if (available) section.classList.remove("hidden");
+      } catch {
+        // Metadata failure must not interfere with IP lookup or page interactions.
+      }
+    }
+    loadDates();
+  })();
+</script>

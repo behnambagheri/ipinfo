@@ -14,6 +14,8 @@ curl -fsS "$origin/json?ip=2606:4700:4700::1111" | jq -e '.ip == "2606:4700:4700
 curl -fsS -A 'Mozilla/5.0' -H 'Accept: text/html' "$origin/" > /tmp/ipinfo-container.html
 grep -Fq 'IPinfo — bea.sh' /tmp/ipinfo-container.html
 grep -Fq 'href="/manifest.webmanifest"' /tmp/ipinfo-container.html
+grep -Fq 'id="database-updates"' /tmp/ipinfo-container.html
+curl -fsS "$origin/database-info" | jq -e '.source == "GeoLite2" and ([.databases.ASN, .databases.City, .databases.Country] | all(test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T")))'
 curl -fsS "$origin/manifest.webmanifest" | jq -e '.display == "standalone" and .start_url == "/" and (.icons | length == 3)'
 curl -fsS "$origin/sw.js" | grep -Fq 'ipinfo-assets-'
 curl -fsS "$origin/offline.html" | grep -Fq 'You’re offline'

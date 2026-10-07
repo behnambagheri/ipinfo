@@ -2,7 +2,7 @@ import { render } from './render.generated.mjs';
 import { templateData } from './render.mjs';
 import { normalizeIP, decimalIP } from './ip.mjs';
 import { assets } from './assets.generated.mjs';
-import { lookupGeoIP } from './geoip.mjs';
+import { lookupGeoIP, databaseInfo } from './geoip.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_eu', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -27,6 +27,10 @@ export async function handleRequest(request, env = {}, context = {}) {
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
   if (url.pathname === '/healthz') return json({ status: 'ok', revision: env.BUILD_REVISION, database_release: env.GEOIP_RELEASE }, 200, head);
+  if (url.pathname === '/database-info') {
+    try { return json(await databaseInfo(env), 200, head); }
+    catch { return json({ error: 'Database dates are unavailable.' }, 503, head); }
+  }
   const asset = assets.get(url.pathname);
   if (asset) return new Response(head ? null : Uint8Array.from(atob(asset.body), char => char.charCodeAt(0)), {
     headers: { ...securityHeaders, 'Content-Type': asset.type, 'Cache-Control': 'no-cache', ...(url.pathname === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) },

@@ -3,7 +3,7 @@ import { Reader } from 'mmdb-lib';
 
 export function fixtureMetadata(bytes, key) {
   const m = new Reader(bytes).metadata;
-  return { key, size: bytes.length, nodeCount: m.nodeCount, recordSize: m.recordSize, ipVersion: m.ipVersion, treeSize: m.searchTreeSize };
+  return { key, size: bytes.length, nodeCount: m.nodeCount, recordSize: m.recordSize, ipVersion: m.ipVersion, treeSize: m.searchTreeSize, buildEpoch: m.buildEpoch.toISOString() };
 }
 
 export function fixtureEnvironment(release = 'geolite2/test') {

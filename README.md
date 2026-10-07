@@ -143,6 +143,13 @@ IPv4/IPv6 prefix index and a bounded 4 MiB page cache avoid loading the full
 production databases into Worker memory. Public `/__geoip/*` requests return
 404; only the internal asset binding reads the database files.
 
+The footer shows separate ASN, City, and Country update dates in UTC. These
+come from the databases' embedded build timestamps, rather than release upload
+dates or filesystem modification times. `/database-info` exposes the timestamps
+as JSON without requiring a visitor IP. The Worker reads its deployed manifest;
+the container reads metadata from its open database readers, including custom
+paths and disabled databases. This endpoint needs no international connection.
+
 Every CI run resolves the latest published release from
 [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) once, downloads
 all three files from that release, verifies their published SHA-256 digests,

@@ -123,6 +123,21 @@ test('unsupported endpoints, methods, HEAD, and unavailable client IP are explic
   assert.equal((await handleRequest(new Request('https://ip.bea.sh/json'))).status, 503);
   assert.equal((await handleRequest(request('/healthz'))).status, 200);
 });
+test('database dates come from deployed MMDB metadata without client IP or database page reads', async () => {
+  const env = fixtureEnvironment();
+  env.manifest.databases.ASN.buildEpoch = '2026-10-05T08:15:27.000Z';
+  env.manifest.databases.City.buildEpoch = '2026-10-06T21:21:33.000Z';
+  env.manifest.databases.Country.buildEpoch = '2026-10-06T21:21:33.000Z';
+  const response = await handleRequest(new Request('https://ip.bea.sh/database-info'), env);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.deepEqual(await response.json(), { source: 'GeoLite2', release: env.GEOIP_RELEASE, databases: {
+    ASN: '2026-10-05T08:15:27.000Z', City: '2026-10-06T21:21:33.000Z', Country: '2026-10-06T21:21:33.000Z',
+  } });
+  assert.equal(env.calls.length, 1);
+  assert.equal(await (await handleRequest(new Request('https://ip.bea.sh/database-info', { method: 'HEAD' }), env)).text(), '');
+  assert.equal((await handleRequest(new Request('https://ip.bea.sh/database-info'))).status, 503);
+});
 test('deployment health identifies the running revision without IP metadata or upstream requests', async () => {
   const revision = 'a'.repeat(40);
   const result = await handleRequest(new Request('https://ip.bea.sh/healthz'), { BUILD_REVISION: revision }, {}, () => { throw new Error('Must not fetch'); });

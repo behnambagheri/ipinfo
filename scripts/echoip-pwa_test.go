@@ -1,10 +1,49 @@
 package http
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
+
+func TestDatabaseDates(t *testing.T) {
+	handler := withPWAAssets(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		t.Fatal("metadata endpoint reached the IP lookup handler")
+	}), func() map[string]string { return map[string]string{"ASN": "2026-10-06T08:15:27Z"} })
+	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost} {
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, httptest.NewRequest(method, "/database-info", nil))
+		if method == http.MethodPost {
+			if response.Code != http.StatusMethodNotAllowed {
+				t.Fatal("POST metadata should be rejected")
+			}
+			continue
+		}
+		if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
+			t.Fatal("invalid metadata response")
+		}
+		if method == http.MethodHead {
+			if response.Body.Len() != 0 {
+				t.Fatal("HEAD returned metadata body")
+			}
+			continue
+		}
+		var info struct {
+			Source    string
+			Databases map[string]string
+		}
+		if err := json.Unmarshal(response.Body.Bytes(), &info); err != nil {
+			t.Fatal(err)
+		}
+		if info.Source != "GeoLite2" || info.Databases["ASN"] != "2026-10-06T08:15:27Z" {
+			t.Fatal("incorrect database date")
+		}
+		if _, ok := info.Databases["City"]; ok {
+			t.Fatal("invented missing database date")
+		}
+	}
+}
 
 func TestPWAAssets(t *testing.T) {
 	handler := withPWAAssets(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

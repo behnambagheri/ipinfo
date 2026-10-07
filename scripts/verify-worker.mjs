@@ -11,6 +11,11 @@ for (let attempt = 1; attempt <= 12; attempt++) {
     const response = await fetch(url, { signal: AbortSignal.timeout(10000), redirect: 'error', cache: 'no-store' });
     const health = await response.json();
     if (response.ok && health.status === 'ok' && health.revision === revision && health.database_release === databaseRelease) {
+      const metadata = await fetch('https://ip.bea.sh/database-info', { signal: AbortSignal.timeout(10000), redirect: 'error', cache: 'no-store' });
+      const info = await metadata.json();
+      if (!metadata.ok || info.release !== databaseRelease || ['ASN', 'City', 'Country'].some(name => !Number.isFinite(Date.parse(info.databases?.[name] || '')))) {
+        throw new Error('Live database dates are unavailable');
+      }
       for (const ip of ['8.8.8.8', '2606:4700:4700::1111', '6.6.6.6']) {
         const lookup = await fetch(`https://ip.bea.sh/json?ip=${ip}`, { signal: AbortSignal.timeout(20000), redirect: 'error', cache: 'no-store' });
         const data = await lookup.json();

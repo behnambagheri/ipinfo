@@ -21,6 +21,7 @@ RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${EC
     && tar -xzf /tmp/echoip.tar.gz --strip-components=1
 COPY --from=ui /build/dist/public/ ./http/pwa-assets/
 COPY scripts/echoip-pwa.go ./http/pwa.go
+COPY scripts/echoip-database.go ./iputil/geo/database.go
 COPY scripts/echoip-pwa_test.go ./http/pwa_test.go
 COPY scripts/echoip-pwa.patch /tmp/echoip-pwa.patch
 RUN patch -p1 < /tmp/echoip-pwa.patch && go test ./http
