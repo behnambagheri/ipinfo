@@ -143,7 +143,8 @@ IPv4/IPv6 prefix index and a bounded 4 MiB page cache avoid loading the full
 production databases into Worker memory. Public `/__geoip/*` requests return
 404; only the internal asset binding reads the database files.
 
-The footer shows separate ASN, City, and Country update dates in UTC. These
+The footer shows one update date when ASN, City, and Country share the same UTC
+date, and separate dates otherwise. These
 come from the databases' embedded build timestamps, rather than release upload
 dates or filesystem modification times. `/database-info` exposes the timestamps
 as JSON without requiring a visitor IP. The Worker reads its deployed manifest;

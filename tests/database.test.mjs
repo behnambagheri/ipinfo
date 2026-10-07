@@ -7,11 +7,16 @@ const script = (await readFile(new URL('../html/metadata.html', import.meta.url)
 async function datesPage(fetcher) {
   const times = ['ASN', 'City', 'Country'].map(database => ({ dataset: { database }, textContent: 'Unavailable' }));
   let hidden = true;
-  const section = { querySelectorAll: () => times, classList: { remove: () => { hidden = false; } } };
+  const common = { hidden: true, classList: { remove: () => { common.hidden = false; } } };
+  const details = { hidden: false, classList: { add: () => { details.hidden = true; } } };
+  const shared = {};
+  const section = { querySelectorAll: () => times,
+    querySelector: selector => ({ 'time[data-database-shared]': shared, '[data-database-common]': common, '[data-database-details]': details })[selector],
+    classList: { remove: () => { hidden = false; } } };
   runInNewContext(script, { document: { getElementById: () => section }, window: { location: { origin: 'https://ip.behnam.pro' } },
     URL, AbortSignal, fetch: fetcher });
   await new Promise(setImmediate);
-  return { times, get hidden() { return hidden; } };
+  return { times, common, details, shared, get hidden() { return hidden; } };
 }
 
 test('footer shows each actual database build date in UTC using only the local metadata endpoint', async () => {
@@ -26,6 +31,19 @@ test('footer shows each actual database build date in UTC using only the local m
   assert.equal(page.times[1].textContent, 'Oct 6, 2026');
   assert.equal(page.times[0].dateTime, '2026-10-05T23:30:00.000Z');
   assert.match(page.times[0].title, /UTC/);
+  assert.equal(page.common.hidden, true);
+  assert.equal(page.details.hidden, false);
+});
+
+test('matching UTC dates collapse to one date despite different build times', async () => {
+  const page = await datesPage(async () => Response.json({ databases: {
+    ASN: '2026-10-06T08:15:27Z', City: '2026-10-06T21:21:33Z', Country: '2026-10-06T21:21:33Z',
+  } }));
+  assert.equal(page.common.hidden, false);
+  assert.equal(page.details.hidden, true);
+  assert.equal(page.shared.textContent, 'Oct 6, 2026');
+  assert.equal(page.shared.dateTime, '2026-10-06');
+  assert.match(page.shared.title, /ASN: 2026-10-06T08:15:27/);
 });
 
 test('missing or failed metadata does not invent dates or interfere with the page', async () => {
@@ -36,4 +54,6 @@ test('missing or failed metadata does not invent dates or interfere with the pag
   const partial = await datesPage(async () => Response.json({ databases: { ASN: '2026-10-06T08:15:27Z' } }));
   assert.equal(partial.hidden, false);
   assert.equal(partial.times[1].textContent, 'Unavailable');
+  assert.equal(partial.common.hidden, true);
+  assert.equal(partial.details.hidden, false);
 });

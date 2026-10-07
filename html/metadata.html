@@ -12,7 +12,7 @@
         if (!response.ok) return;
         const info = await response.json();
         const format = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeZone: "UTC" });
-        let available = false;
+        const dates = [];
         section.querySelectorAll("time[data-database]").forEach((element) => {
           const value = info.databases?.[element.dataset.database];
           const date = new Date(value || "");
@@ -20,9 +20,17 @@
           element.dateTime = date.toISOString();
           element.textContent = format.format(date);
           element.title = `Database built ${date.toISOString()} (UTC)`;
-          available = true;
+          dates.push({ name: element.dataset.database, date });
         });
-        if (available) section.classList.remove("hidden");
+        if (dates.length === 3 && new Set(dates.map(({ date }) => date.toISOString().slice(0, 10))).size === 1) {
+          const shared = section.querySelector("time[data-database-shared]");
+          shared.dateTime = dates[0].date.toISOString().slice(0, 10);
+          shared.textContent = format.format(dates[0].date);
+          shared.title = dates.map(({ name, date }) => `${name}: ${date.toISOString()} (UTC)`).join("\n");
+          section.querySelector("[data-database-details]").classList.add("hidden");
+          section.querySelector("[data-database-common]").classList.remove("hidden");
+        }
+        if (dates.length > 0) section.classList.remove("hidden");
       } catch {
         // Metadata failure must not interfere with IP lookup or page interactions.
       }

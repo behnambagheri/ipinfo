@@ -209,12 +209,15 @@
         <p>bea.sh IPinfo <span aria-hidden="true">·</span> Powered by echoip and GeoLite2</p>
         <p class="text-xs">GeoLite2 data created by <a href="https://www.maxmind.com" class="underline">MaxMind</a>.</p>
         <div id="database-updates" class="hidden max-w-full text-xs">
-          <p class="mb-1">GeoLite2 database updates</p>
-          <dl class="flex flex-wrap gap-x-4 gap-y-1">
-            <div class="flex gap-1"><dt>ASN:</dt><dd><time data-database="ASN">Unavailable</time></dd></div>
-            <div class="flex gap-1"><dt>City:</dt><dd><time data-database="City">Unavailable</time></dd></div>
-            <div class="flex gap-1"><dt>Country:</dt><dd><time data-database="Country">Unavailable</time></dd></div>
-          </dl>
+          <p data-database-common class="hidden">GeoLite2 updated: <time data-database-shared></time></p>
+          <div data-database-details>
+            <p class="mb-1">GeoLite2 database updates</p>
+            <dl class="flex flex-wrap gap-x-4 gap-y-1">
+              <div class="flex gap-1"><dt>ASN:</dt><dd><time data-database="ASN">Unavailable</time></dd></div>
+              <div class="flex gap-1"><dt>City:</dt><dd><time data-database="City">Unavailable</time></dd></div>
+              <div class="flex gap-1"><dt>Country:</dt><dd><time data-database="Country">Unavailable</time></dd></div>
+            </dl>
+          </div>
         </div>
       </aside>
       <nav class="flex flex-wrap gap-5" aria-label="Footer navigation">
