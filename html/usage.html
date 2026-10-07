@@ -74,13 +74,7 @@ Dilbert Technologies</code></pre>
       </section>
       <section aria-labelledby="usage-version-title" class="space-y-3">
         <h3 id="usage-version-title" class="text-lg font-semibold">IPv4 and IPv6</h3>
-        <p class="text-sm leading-relaxed text-base-content/65">Default behavior uses your current connection. Add <code>family=4</code> or <code>family=6</code> to require that address family. Use <code>-L</code> to follow a redirect when family switching is configured.</p>
-        <pre class="overflow-x-auto whitespace-pre-wrap break-all rounded-box bg-base-200 p-4 text-sm"><code>$ curl -fsSL '<span data-usage-origin>{{ .Host }}</span>/ip?family=4'
-$ curl -fsSL '<span data-usage-origin>{{ .Host }}</span>/json?family=6'
-$ curl -fsS '<span data-usage-origin>{{ .Host }}</span>/json?family=auto'</code></pre>
-        <p class="text-sm leading-relaxed text-base-content/65">A matching connection returns its address immediately. Switching requires IPv4-only and IPv6-only endpoints for this deployment; without them, a mismatched request returns HTTP 503. An endpoint that still receives the wrong family returns HTTP 409. This service never substitutes the other family or contacts an external IP discovery service.</p>
-        <p class="text-sm leading-relaxed text-base-content/65">On the hosted Cloudflare deployment, cross-family switching is currently unavailable. Cloudflare has not enabled family-only DNS settings for this zone. A matching family request works; the other family returns an error.</p>
-        <p class="text-sm leading-relaxed text-base-content/65">Do not combine <code>family=4</code> or <code>family=6</code> with an explicit <code>?ip=</code> lookup (HTTP 400). curl's <code>-4</code> and <code>-6</code> flags select the client's connection; a VPN or proxy may use a different family when forwarding it.</p>
+        <p class="text-sm leading-relaxed text-base-content/65">This service supports both IPv4 and IPv6 and reports the address used to connect to it. curl's <code>-4</code> and <code>-6</code> flags choose the client's connection family; a VPN or proxy may forward that connection over a different family.</p>
       </section>
     </div>
     <div class="modal-action">

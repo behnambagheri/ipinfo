@@ -16,11 +16,3 @@ grep -Fq 'IPinfo — bea.sh' /tmp/ipinfo-container.html
 actual="$(curl -fsS "$origin/ip")"
 spoofed="$(curl -fsS -H 'X-Forwarded-For: 203.0.113.10' -H 'X-Real-IP: 203.0.113.20' "$origin/ip")"
 test "$actual" = "$spoofed"
-# A requested family must match the visitor or fail explicitly, never fall back.
-if [[ "$actual" == *:* ]]; then matching=6; other=4; else matching=4; other=6; fi
-test "$(curl -fsS "$origin/ip?family=$matching")" = "$actual"
-test "$(curl -sS -o /tmp/ipinfo-family-error.json -w '%{http_code}' "$origin/json?family=$other")" = 503
-jq -e '.error | contains("switching is unavailable")' /tmp/ipinfo-family-error.json
-test "$(curl -sS -o /dev/null -w '%{http_code}' "$origin/json?ip=8.8.8.8&family=4")" = 400
-grep -Fq 'family=4' /tmp/ipinfo-container.html
-if grep -Fq 'api.ipify.org' /tmp/ipinfo-container.html; then exit 1; fi

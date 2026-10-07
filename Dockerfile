@@ -4,14 +4,11 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG ECHOIP_REV=27646b3c4c39041baf8734063e87e71d46f53362
 ARG ECHOIP_SHA256=7f40c90364a8be735952aa7380cb92f36a15f732cb64c9fc29bea3bd4494c3e7
-RUN apk add --no-cache curl patch
+RUN apk add --no-cache curl
 WORKDIR /src
 RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${ECHOIP_REV}" -o /tmp/echoip.tar.gz \
     && echo "${ECHOIP_SHA256}  /tmp/echoip.tar.gz" | sha256sum -c - \
     && tar -xzf /tmp/echoip.tar.gz --strip-components=1
-COPY patches/echoip-family.patch /tmp/echoip-family.patch
-COPY container/family.go container/family_test.go ./http/
-RUN patch -p1 < /tmp/echoip-family.patch && go test ./http
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/echoip ./cmd/echoip
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
@@ -37,5 +34,5 @@ COPY scripts/entrypoint.sh /usr/local/bin/ipinfo-entrypoint
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/ipinfo/THIRD_PARTY_NOTICES.md
 USER 10001:10001
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/ip || exit 1
 ENTRYPOINT ["/bin/sh", "/usr/local/bin/ipinfo-entrypoint"]

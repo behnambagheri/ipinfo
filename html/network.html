@@ -12,95 +12,27 @@
       }));
     }
 
-    const controls = document.getElementById("family-controls");
-    const buttons = [...controls.querySelectorAll("button[data-ip-family]")];
-    const status = document.getElementById("family-status");
-    const currentURL = new URL(window.location.href);
-    const settings = JSON.parse({{ .NetworkConfig }});
-    const manualLookup = currentURL.searchParams.has("ip");
-    const selected = manualLookup ? null : currentURL.searchParams.get("family") || "auto";
+    const showMyIP = document.getElementById("show-my-ip");
+    if (!showMyIP) return;
     const ipv4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
     const ipv6 = /^[\da-f:]+$/i;
-    const matchesFamily = (value, family) => typeof value === "string" && (family === "4"
-      ? ipv4.test(value) && value.split(".").every((part) => Number(part) <= 255)
-      : ipv6.test(value) && value.includes(":"));
-    const activeFamily = ["4", "6"].includes(selected) && matchesFamily(ip, selected) ? selected : selected === "auto" ? "auto" : null;
-    const showMyIP = document.getElementById("show-my-ip");
-    if (showMyIP && manualLookup) {
-      // Compare against this service's connection IP, not another discovery provider.
-      async function updateReturnLink() {
-        try {
-          const response = await fetch(new URL("/ip", currentURL.origin).href, {
-            signal: AbortSignal.timeout(4000), cache: "no-store", redirect: "error",
-            headers: { Accept: "text/plain" },
-          });
-          if (!response.ok) return;
-          const visitorIP = (await response.text()).trim();
-          if ((matchesFamily(visitorIP, "4") || matchesFamily(visitorIP, "6")) && visitorIP !== ip) {
-            showMyIP.classList.toggle("hidden", false);
-          }
-        } catch {
-          // Keep the link hidden when the visitor's address cannot be confirmed.
-        }
-      }
-      updateReturnLink();
-    }
-    // Explicit lookups always describe a specified address, not a connection choice.
-    if (manualLookup) return;
-    buttons.forEach((button) => {
-      const active = button.dataset.ipFamily === activeFamily;
-      button.setAttribute("aria-pressed", String(active));
-      button.classList.toggle("btn-active", active);
-    });
-    if (activeFamily && activeFamily !== "auto") {
-      document.getElementById("ip-title").textContent = `Your IPv${activeFamily} address`;
-      status.textContent = `IPv${activeFamily} selected. Select Auto to return to your current connection.`;
-    }
-    controls.classList.replace("hidden", "flex");
-
-    let pending;
-    buttons.forEach((button) => button.addEventListener("click", async () => {
-      const family = button.dataset.ipFamily;
-      // Auto already has this address: leave the page and connection metadata untouched.
-      if (family === activeFamily || (activeFamily === "auto" && ["4", "6"].includes(family) && matchesFamily(ip, family))) return;
-      pending?.abort();
-      if (family === "auto") {
-        window.location.assign(new URL("/", settings.auto || currentURL.origin).href);
-        return;
-      }
-      if (!settings[`ipv${family}`]) {
-        status.textContent = `IPv${family} switching is unavailable on this deployment. Auto still shows your current connection.`;
-        return;
-      }
-      const controller = new AbortController();
-      pending = controller;
-      const timeout = setTimeout(() => controller.abort(), 8000);
-      buttons.forEach((item) => { item.disabled = item.dataset.ipFamily !== "auto"; });
-      controls.setAttribute("aria-busy", "true");
-      status.textContent = `Detecting your IPv${family} address…`;
+    const validIP = (value) => typeof value === "string" && (
+      (ipv4.test(value) && value.split(".").every((part) => Number(part) <= 255)) ||
+      (ipv6.test(value) && value.includes(":"))
+    );
+    async function updateReturnLink() {
       try {
-        const endpoint = new URL("/json", currentURL.origin);
-        endpoint.searchParams.set("family", family);
-        const response = await fetch(endpoint.href, { signal: controller.signal, credentials: "omit", cache: "no-store", redirect: "follow", referrerPolicy: "no-referrer" });
-        if (!response.ok) throw new Error("The selected connection is unavailable");
-        const result = await response.json();
-        if (!matchesFamily(result.ip, family)) throw new Error("Unexpected address version");
-        if (controller.signal.aborted) return;
-        const target = new URL(response.url);
-        // Only follow this deployment's configured first-party origin.
-        if (![currentURL.origin, settings[`ipv${family}`]].includes(target.origin)) throw new Error("Unexpected endpoint");
-        target.pathname = "/";
-        window.location.assign(target.href);
+        const response = await fetch(new URL("/ip", window.location.href).href, {
+          signal: AbortSignal.timeout(4000), cache: "no-store", redirect: "error",
+          headers: { Accept: "text/plain" },
+        });
+        if (!response.ok) return;
+        const visitorIP = (await response.text()).trim();
+        if (validIP(visitorIP) && visitorIP !== ip) showMyIP.classList.toggle("hidden", false);
       } catch {
-        if (pending === controller) status.textContent = `Could not connect over IPv${family}. Your network or this deployment may not support it. Auto is still available.`;
-      } finally {
-        clearTimeout(timeout);
-        if (pending === controller) {
-          pending = undefined;
-          buttons.forEach((item) => { item.disabled = false; });
-          controls.setAttribute("aria-busy", "false");
-        }
+        // Keep the link hidden when the visitor's address cannot be confirmed.
       }
-    }));
+    }
+    updateReturnLink();
   })();
 </script>

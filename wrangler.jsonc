@@ -6,7 +6,6 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": false,
   "preview_urls": false,
-  "vars": { "IPINFO_AUTO_URL": "https://ip.bea.sh" },
   "routes": [{ "pattern": "ip.bea.sh", "custom_domain": true }],
   "observability": { "enabled": false }
 }
