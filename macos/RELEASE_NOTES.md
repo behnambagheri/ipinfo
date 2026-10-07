@@ -24,4 +24,16 @@ credentials remain ad-hoc signed and may require first-launch approval through
 standard macOS quarantine checks. Packaging supports full signing and
 notarization once the repository's Apple credentials are configured.
 
+For releases that are not notarized, Homebrew prints this optional Terminal
+workaround at the end of installation. If macOS blocks the app and you trust the
+download, remove its download quarantine attribute and reopen it:
+
+```sh
+sudo /usr/bin/xattr -r -d com.apple.quarantine "/Applications/IPinfo.app"
+open "/Applications/IPinfo.app"
+```
+
+Adjust the path for a manual install elsewhere. Homebrew displays your configured
+application directory in these commands.
+
 Source, database-release identifiers, User-Agent, derived decimal IP, and container-only reverse DNS are excluded from equality checks. IP addresses are normalized; all available shared location and ASN fields must match. Checks do not force IPv4 or IPv6, so different routes or address families can produce different results.

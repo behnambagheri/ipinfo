@@ -244,6 +244,18 @@ Security → Open Anyway**. The cask preserves normal Gatekeeper/quarantine chec
 A Developer ID certificate and notarization credentials are needed to remove
 that first-launch approval requirement.
 
+For releases that are not notarized, Homebrew displays an optional Terminal
+workaround at the end of installation. If macOS blocks IPinfo and you trust the
+download, remove the app's download quarantine attribute and reopen it:
+
+```sh
+sudo /usr/bin/xattr -r -d com.apple.quarantine "/Applications/IPinfo.app"
+open "/Applications/IPinfo.app"
+```
+
+Adjust the path if you installed the app elsewhere; the Homebrew message uses
+your configured application directory. The command applies only to IPinfo.
+
 ```sh
 brew upgrade --cask ipinfo
 brew uninstall --cask ipinfo
