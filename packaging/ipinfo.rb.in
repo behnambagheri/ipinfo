@@ -7,7 +7,7 @@ cask "ipinfo" do
   desc "Compare IP and network diagnostics from two services"
   homepage "https://github.com/behnambagheri/ipinfo"
 
-  depends_on macos: ">= :ventura"
+  depends_on macos: :ventura
 
   app "IPinfo.app"
 
