@@ -79,6 +79,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ])
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if CommandLine.arguments.contains("--verify-gui") {
+            guard window.isVisible, window.contentView != nil, refreshButton.isEnabled else {
+                fputs("IPinfo GUI startup failed\n", stderr)
+                exit(1)
+            }
+            print("IPinfo GUI startup passed")
+            NSApp.terminate(nil)
+            return
+        }
         refresh()
     }
 
@@ -228,7 +237,9 @@ if CommandLine.arguments.contains("--check") {
     let delegate = AppDelegate()
     application.delegate = delegate
     application.setActivationPolicy(.regular)
-    application.run()
+    withExtendedLifetime(delegate) {
+        application.run()
+    }
 }
 
     }

@@ -276,6 +276,7 @@ open dist/macos/IPinfo.app
 
 Packaging runs the Swift comparison and CLI tests, compiles both CPU architectures,
 generates the app icon from the existing logo, and signs both bundles. It verifies
+that the graphical executable creates a visible window on the build host, and
 that the app and CLI contain only ARM64 in the Apple Silicon build and both
 ARM64 and x86_64 in the Universal build. It writes `IPinfo-<version>-arm64.zip`,
 `IPinfo-<version>-arm64.dmg`, `IPinfo-<version>-universal.zip`,

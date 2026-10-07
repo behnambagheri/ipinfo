@@ -17,8 +17,9 @@ await writeFile(join(build, 'Version.swift'), `enum IPinfoVersion { static let v
 run('swiftc', [...swift, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'tests/macos/DiagnosticsTests.swift', '-o', join(build, 'tests')]);
 run(join(build, 'tests'), []);
 for (const arch of ['arm64', 'x86_64']) {
-  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/App.swift', '-o', join(build, `IPinfo-${arch}`)]);
-  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/Command.swift', join(build, 'Version.swift'), '-o', join(build, `ipinfo-${arch}`)]);
+  // macOS filesystems commonly ignore case, so GUI and CLI names must differ beyond capitalization.
+  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/App.swift', '-o', join(build, `ipinfo-gui-${arch}`)]);
+  run('swiftc', [...swift, '-target', `${arch}-apple-macos13.0`, 'macos/Settings.swift', 'macos/Diagnostics.swift', 'macos/CLI.swift', 'macos/Command.swift', join(build, 'Version.swift'), '-o', join(build, `ipinfo-cli-${arch}`)]);
 }
 const iconset = join(build, 'IPinfo.iconset');
 await mkdir(iconset, { recursive: true });
@@ -45,7 +46,7 @@ for (const [target, architectures] of [['arm64', ['arm64']], ['universal', ['arm
   await mkdir(join(app, 'Contents/MacOS'), { recursive: true });
   await mkdir(join(app, 'Contents/Resources'), { recursive: true });
   await mkdir(join(app, 'Contents/Helpers'), { recursive: true });
-  for (const [binary, destination] of [['IPinfo', 'Contents/MacOS/IPinfo'], ['ipinfo', 'Contents/Helpers/ipinfo']]) {
+  for (const [binary, destination] of [['ipinfo-gui', 'Contents/MacOS/IPinfo'], ['ipinfo-cli', 'Contents/Helpers/ipinfo']]) {
     const executable = join(app, destination);
     if (architectures.length === 1) {
       await cp(join(build, `${binary}-${architectures[0]}`), executable);
@@ -65,6 +66,11 @@ for (const [target, architectures] of [['arm64', ['arm64']], ['universal', ['arm
   sign(join(app, 'Contents/Helpers/ipinfo'));
   sign(app);
   run('codesign', ['--verify', '--deep', '--strict', app]);
+  if (architectures.includes(process.arch === 'x64' ? 'x86_64' : process.arch)) {
+    const startup = execFileSync(join(app, 'Contents/MacOS/IPinfo'), ['--verify-gui'], { encoding: 'utf8', timeout: 30000 });
+    if (!startup.includes('IPinfo GUI startup passed')) throw new Error(`GUI startup verification failed for ${target}`);
+    console.log(`${target}: ${startup.trim()}`);
+  }
   if (profile) {
     const submission = join(build, `notarization-${target}.zip`);
     run('ditto', ['-c', '-k', '--keepParent', app, submission]);

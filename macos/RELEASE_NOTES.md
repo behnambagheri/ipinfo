@@ -1,5 +1,9 @@
 IPinfo for macOS checks `ip.bea.sh` and `ip.behnam.pro` concurrently using the current network connection.
 
+This release fixes a packaging bug that replaced the graphical executable with
+the CLI on filesystems that ignore filename case. Both macOS builds now verify
+that the graphical app creates a visible window before packaging.
+
 - Matching IP, location, and ASN results show only `ip.bea.sh`.
 - Different results show both services, with their IP and available diagnostic fields.
 - Unreachable services remain visible with an error; a failed check is never treated as a match.

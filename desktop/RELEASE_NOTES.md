@@ -1,5 +1,9 @@
 IPinfo includes a graphical app and a standalone `ipinfo` command in every download.
 
+This release fixes a macOS packaging bug that replaced the graphical executable
+with the CLI on filesystems that ignore filename case. Both macOS builds now
+verify that their graphical app creates a visible window before packaging.
+
 - macOS: separate Apple Silicon-only (`arm64`) and Universal (`arm64` + `x86_64`) native app and CLI builds, each with DMG and ZIP downloads. Homebrew selects the smaller Apple Silicon build on ARM Macs and the Universal build on Intel Macs.
 - Linux: combined portable archives and native Debian, RPM, and Arch packages for AMD64 and ARM64. Install the downloaded native package with apt, dnf, or pacman.
 - Windows: combined portable ZIPs for AMD64 and ARM64, a Scoop manifest, and WinGet submission manifests.
