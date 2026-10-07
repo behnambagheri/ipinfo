@@ -4,9 +4,9 @@ IPinfo for macOS checks `ip.bea.sh` and `ip.behnam.pro` concurrently using the c
 - Different results show both services, with their IP and available diagnostic fields.
 - Unreachable services remain visible with an error; a failed check is never treated as a match.
 - Refresh after changing a VPN or proxy. Copy either IP or open either website.
-- Universal app for Apple Silicon and Intel Macs running macOS 13 or later. No Node.js, Docker, or local server is required.
+- Separate Apple Silicon-only (`arm64`) and Universal (`arm64` + `x86_64`) builds for Macs running macOS 13 or later. No Node.js, Docker, or local server is required.
 - Homebrew installs the `ipinfo` CLI alongside the app. Run `ipinfo` for your public IP, `ipinfo 1.2.3.4` for a specific address, or `ipinfo --json` for structured output. IPv6 is supported. Both services are checked in every lookup, with the same match/difference rules as the app.
-- ZIP and DMG downloads are included. The DMG supports dragging the app into Applications.
+- ZIP and DMG downloads are included for both builds. Each DMG supports dragging the app into Applications. Homebrew selects the Apple Silicon build on ARM Macs and the Universal build on Intel Macs.
 
 Install from the project tap:
 

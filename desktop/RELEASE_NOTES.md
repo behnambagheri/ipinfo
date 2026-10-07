@@ -1,6 +1,6 @@
 IPinfo includes a graphical app and a standalone `ipinfo` command in every download.
 
-- macOS: universal native app and CLI for Apple Silicon and Intel; DMG, ZIP, and Homebrew cask.
+- macOS: separate Apple Silicon-only (`arm64`) and Universal (`arm64` + `x86_64`) native app and CLI builds, each with DMG and ZIP downloads. Homebrew selects the smaller Apple Silicon build on ARM Macs and the Universal build on Intel Macs.
 - Linux: combined portable archives and native Debian, RPM, and Arch packages for AMD64 and ARM64. Install the downloaded native package with apt, dnf, or pacman.
 - Windows: combined portable ZIPs for AMD64 and ARM64, a Scoop manifest, and WinGet submission manifests.
 - The CLI works on servers without a graphical environment or a Node.js installation.

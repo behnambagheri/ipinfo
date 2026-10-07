@@ -128,9 +128,12 @@ jobs:
           path: |
             dist/macos/IPinfo-*-universal.zip
             dist/macos/IPinfo-*-universal.dmg
+            dist/macos/IPinfo-*-arm64.zip
+            dist/macos/IPinfo-*-arm64.dmg
             dist/macos/SHA256SUMS
             dist/macos/ipinfo.rb
             dist/macos/distribution-status.json
+          if-no-files-found: error
   manifests:
     needs: desktop
     runs-on: ubuntu-latest
@@ -200,4 +203,4 @@ jobs:
           (cd release/macos && sha256sum -c SHA256SUMS)
           (cd release/desktop && cat SHA256SUMS-* | sha256sum -c -)
           (cd release/package-managers && sha256sum -c SHA256SUMS-manifests)
-          gh release create "$GITHUB_REF_NAME" release/macos/IPinfo-*-universal.zip release/macos/IPinfo-*-universal.dmg release/desktop/IPinfo-*.zip release/desktop/IPinfo-*.tar.gz release/desktop/bea-ipinfo_*.deb release/desktop/bea-ipinfo-*.rpm release/desktop/bea-ipinfo-*.pkg.tar.zst release/package-managers/ipinfo.json release/package-managers/IPinfo-winget-manifests.zip release/SHA256SUMS release/macos/ipinfo.rb release/macos/distribution-status.json --verify-tag --title "IPinfo $GITHUB_REF_NAME" --notes-file release/notes.md
+          gh release create "$GITHUB_REF_NAME" release/macos/IPinfo-*-universal.zip release/macos/IPinfo-*-universal.dmg release/macos/IPinfo-*-arm64.zip release/macos/IPinfo-*-arm64.dmg release/desktop/IPinfo-*.zip release/desktop/IPinfo-*.tar.gz release/desktop/bea-ipinfo_*.deb release/desktop/bea-ipinfo-*.rpm release/desktop/bea-ipinfo-*.pkg.tar.zst release/package-managers/ipinfo.json release/package-managers/IPinfo-winget-manifests.zip release/SHA256SUMS release/macos/ipinfo.rb release/macos/distribution-status.json --verify-tag --title "IPinfo $GITHUB_REF_NAME" --notes-file release/notes.md

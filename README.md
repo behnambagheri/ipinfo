@@ -29,7 +29,7 @@ GeoLite2 database is required.
 
 | System | Downloads | Graphical launcher | CLI |
 | --- | --- | --- | --- |
-| macOS 13+ | Universal DMG or ZIP; Homebrew cask | IPinfo.app | `ipinfo` |
+| macOS 13+ | Apple Silicon or Universal DMG/ZIP; Homebrew cask | IPinfo.app | `ipinfo` |
 | Linux, glibc | AMD64 or ARM64 `.tar.gz`, `.deb`, `.rpm`, `.pkg.tar.zst` | `IPinfo-GUI` / `ipinfo-gui` | `ipinfo` |
 | Windows 10+ | AMD64 or ARM64 `.zip`; Scoop and WinGet manifests | `IPinfo-GUI.exe` / `ipinfo-gui` | `ipinfo.exe` |
 
@@ -224,7 +224,11 @@ This is a project-maintained cask, not a listing in the official Homebrew cask
 repository. Without adding the tap first, use the fully qualified install name.
 The unrelated `brew install ipinfo` formula is a different project.
 
-The universal app supports Apple Silicon and Intel Macs on macOS 13 or later.
+macOS downloads include an Apple Silicon-only build (`arm64`) and a Universal
+build (`universal`) for both Apple Silicon and Intel Macs on macOS 13 or later.
+Each build includes the native app and CLI in ZIP and DMG formats. Homebrew
+automatically selects the smaller `arm64` ZIP on Apple Silicon and the Universal
+ZIP on Intel.
 It requires no Node.js, Docker, local service, or local GeoLite2 databases.
 The app sends lookup requests only to the two named services and does not
 persist diagnostic results. Requests may be counted by each service's existing
@@ -271,9 +275,14 @@ open dist/macos/IPinfo.app
 ```
 
 Packaging runs the Swift comparison and CLI tests, compiles both CPU architectures,
-generates the app icon from the existing logo, signs the bundle, and writes a
-ZIP, DMG, SHA-256 checksums, signing-status JSON, and ready-to-publish cask into
-`dist/macos/`. The DMG includes the app and an Applications shortcut for a manual
+generates the app icon from the existing logo, and signs both bundles. It verifies
+that the app and CLI contain only ARM64 in the Apple Silicon build and both
+ARM64 and x86_64 in the Universal build. It writes `IPinfo-<version>-arm64.zip`,
+`IPinfo-<version>-arm64.dmg`, `IPinfo-<version>-universal.zip`,
+`IPinfo-<version>-universal.dmg`, SHA-256 checksums, signing-status JSON, and a
+ready-to-publish cask into `dist/macos/`. The Universal app is at
+`dist/macos/IPinfo.app`; the Apple Silicon app is at `dist/macos/arm64/IPinfo.app`.
+Each DMG includes the app and an Applications shortcut for a manual
 drag-and-drop installation. Homebrew installs both the app and its CLI; manual
 DMG users can run `/Applications/IPinfo.app/Contents/Helpers/ipinfo` directly.
 The optional
@@ -284,7 +293,7 @@ version-tagged releases only after all five native packaging jobs and package-ma
 manifest validation pass. Tags
 must match the numeric `package.json` version.
 After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
-`Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
+`Casks/ipinfo.rb`; always use the checksums of both actual published ZIPs.
 
 #### Developer ID signing and notarization
 
