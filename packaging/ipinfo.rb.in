@@ -10,12 +10,9 @@ cask "ipinfo" do
   depends_on macos: :ventura
 
   app "IPinfo.app"
+  binary "#{appdir}/IPinfo.app/Contents/Helpers/ipinfo"
 
   uninstall quit: "sh.bea.ipinfo"
 
-  caveats <<~EOS
-    This release is ad-hoc signed and is not Apple-notarized.
-    macOS may require approval in System Settings > Privacy & Security
-    before its first launch.
-  EOS
+__CAVEATS__
 end

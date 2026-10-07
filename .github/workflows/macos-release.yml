@@ -8,6 +8,7 @@ on:
       - 'packaging/**'
       - 'tests/macos/**'
       - 'scripts/package-macos.mjs'
+      - 'scripts/package-macos-ci.mjs'
       - 'public/brand/ipinfo.svg'
       - 'package*.json'
       - '.github/workflows/macos-release.yml'
@@ -17,6 +18,7 @@ permissions:
 jobs:
   package:
     runs-on: macos-15
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -27,14 +29,28 @@ jobs:
       - name: Check release version
         if: startsWith(github.ref, 'refs/tags/')
         run: node --input-type=module -e 'import { readFileSync } from "node:fs"; const { version } = JSON.parse(readFileSync("package.json")); if (process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error("Tag and package version must match");'
-      - run: npm run package:macos
+      - name: Build and test pull requests without signing credentials
+        if: github.event_name == 'pull_request'
+        run: npm run package:macos
+      - name: Build release with optional Developer ID signing and notarization
+        if: github.event_name != 'pull_request'
+        run: node scripts/package-macos-ci.mjs
+        env:
+          MACOS_CERTIFICATE_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE_P12_BASE64 }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          MACOS_SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
       - uses: actions/upload-artifact@v4
         with:
           name: IPinfo-macOS
           path: |
             dist/macos/IPinfo-*-universal.zip
+            dist/macos/IPinfo-*-universal.dmg
             dist/macos/SHA256SUMS
             dist/macos/ipinfo.rb
+            dist/macos/distribution-status.json
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: package
@@ -51,4 +67,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" release/IPinfo-*-universal.zip release/SHA256SUMS release/ipinfo.rb --verify-tag --title "IPinfo $GITHUB_REF_NAME for macOS" --notes-file macos/RELEASE_NOTES.md
+          cp macos/RELEASE_NOTES.md release/notes.md
+          node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; const status = JSON.parse(readFileSync("release/distribution-status.json")); appendFileSync("release/notes.md", `\nSigning status: ${status.developer_id_signed ? "Developer ID signed" : "ad-hoc signed"}; ${status.notarized ? "Apple-notarized" : "not Apple-notarized; first launch may require approval in Privacy & Security"}.\n`);'
+          gh release create "$GITHUB_REF_NAME" release/IPinfo-*-universal.zip release/IPinfo-*-universal.dmg release/SHA256SUMS release/ipinfo.rb release/distribution-status.json --verify-tag --title "IPinfo $GITHUB_REF_NAME for macOS" --notes-file release/notes.md

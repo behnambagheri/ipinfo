@@ -2,6 +2,7 @@ import Foundation
 
 final class FixtureProtocol: URLProtocol, @unchecked Sendable {
     static var responses: [String: (Int, String)] = [:]
+    static var expectedIP: String?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
@@ -11,6 +12,9 @@ final class FixtureProtocol: URLProtocol, @unchecked Sendable {
         }
         precondition(request.value(forHTTPHeaderField: "Accept") == "application/json")
         precondition(request.cachePolicy == .reloadIgnoringLocalCacheData)
+        if let expected = Self.expectedIP {
+            precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value == expected)
+        }
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: Data(body.utf8))
@@ -31,6 +35,20 @@ struct DiagnosticsTests {
         let same = try diagnostic(#"{"asn":"AS15169","country":"United States","ip":"8.8.8.8","source":"GeoLite2","database_release":"release","hostname":"dns.google","user_agent":"two","ip_decimal":134744072}"#)
         let equal = Comparison(primary: result(.primary, first), secondary: result(.secondary, same))
         expect(equal.identical && equal.visible.map { $0.endpoint.host } == ["ip.bea.sh"])
+        expect(CLIOutput.text(equal).contains("ip.bea.sh"))
+        expect(!CLIOutput.text(equal).contains("ip.behnam.pro"))
+        let equalJSON = try JSONDecoder().decode([String: [String: JSONValue]].self, from: Data(CLIOutput.json(equal).utf8))
+        expect(Array(equalJSON.keys) == ["ip.bea.sh"])
+        expect(CLIOutput.exitCode(equal) == 0)
+        expect(try CLIOptions(arguments: []).ip == nil)
+        expect(try CLIOptions(arguments: ["--json", "1.2.3.4"]).json)
+        expect(try CLIOptions(arguments: ["2606:4700:4700:0:0:0:0:1111"]).ip == "2606:4700:4700::1111")
+        expect(try CLIOptions(arguments: ["--help"]).help)
+        for arguments in [["bad"], ["--unknown"], ["1.2.3.4", "8.8.8.8"], ["1.2.3.4?x=1"], ["256.1.2.3"]] {
+            do { _ = try CLIOptions(arguments: arguments); preconditionFailure("Accepted invalid arguments") }
+            catch { /* Expected rejection before any requests. */ }
+        }
+        expect(CLIOutput.safe("network\u{001B}[31m\nname") == "network [31m name")
         let different = try diagnostic(#"{"ip":"1.1.1.1","country":"United States","asn":"AS15169"}"#)
         expect(!first.matches(different))
         expect(!first.matches(try diagnostic(#"{"ip":"8.8.8.8","country":"Iran","asn":"AS15169"}"#)))
@@ -65,15 +83,31 @@ struct DiagnosticsTests {
         FixtureProtocol.responses["ip.behnam.pro"] = (200, #"{"ip":"1.1.1.1","country":"United States"}"#)
         let mismatching = await Comparison.check(session: session)
         expect(!mismatching.identical && mismatching.visible.count == 2)
+        expect(CLIOutput.text(mismatching).contains("ip.behnam.pro"))
+        FixtureProtocol.responses = [
+            "ip.bea.sh": (200, #"{"ip":"1.2.3.4","country":"Australia"}"#),
+            "ip.behnam.pro": (200, #"{"ip":"1.2.3.4","country":"Australia"}"#)
+        ]
+        FixtureProtocol.expectedIP = "1.2.3.4"
+        let custom = await Comparison.check(session: session, ip: "1.2.3.4")
+        FixtureProtocol.expectedIP = nil
+        expect(custom.identical && custom.primary.diagnostic?.ip == "1.2.3.4")
+        expect(ServiceEndpoint.primary.lookupURL(ip: "1.2.3.4").absoluteString == "https://ip.bea.sh/json?ip=1.2.3.4")
+        expect(URLComponents(url: ServiceEndpoint.secondary.lookupURL(ip: "2606:4700:4700::1111"), resolvingAgainstBaseURL: false)?.queryItems?.first?.value == "2606:4700:4700::1111")
+        let ignoredQuery = await ServiceResult.fetch(.primary, session: session, ip: "8.8.8.8")
+        expect(ignoredQuery.diagnostic == nil)
         FixtureProtocol.responses["ip.behnam.pro"] = (502, #"{"error":"Unavailable"}"#)
         let unavailable = await Comparison.check(session: session)
         expect(unavailable.visible.count == 2 && unavailable.secondary.error!.contains("502"))
+        expect(CLIOutput.exitCode(unavailable) == 1)
+        let failedJSON = try JSONDecoder().decode([String: [String: JSONValue]].self, from: Data(CLIOutput.json(unavailable).utf8))
+        expect(failedJSON.count == 2 && failedJSON["ip.behnam.pro"]?["error"] != nil)
         FixtureProtocol.responses.removeValue(forKey: "ip.bea.sh")
         let timedOut = await Comparison.check(session: session)
         expect(timedOut.primary.error!.contains("timed out") && timedOut.visible.count == 2)
         FixtureProtocol.responses["ip.behnam.pro"] = (200, "<html>Error</html>")
         let malformed = await Comparison.check(session: session)
         expect(malformed.secondary.diagnostic == nil && malformed.visible.count == 2)
-        print("Passed macOS comparison tests: matches, differences, IPv6 normalization, metadata, missing fields, and failures.")
+        print("Passed macOS comparison and CLI tests: matching/different output, explicit IP requests, IPv6, invalid input, metadata, missing fields, and failures.")
     }
 }

@@ -35,6 +35,11 @@ enum JSONValue: Codable, Equatable, Sendable {
 struct ServiceEndpoint: Sendable {
     let host: String
     var url: URL { URL(string: "https://\(host)/json")! }
+    func lookupURL(ip: String?) -> URL {
+        var parts = URLComponents(url: url, resolvingAgainstBaseURL: false)!
+        if let ip { parts.queryItems = [URLQueryItem(name: "ip", value: ip)] }
+        return parts.url!
+    }
     static let primary = ServiceEndpoint(host: "ip.bea.sh")
     static let secondary = ServiceEndpoint(host: "ip.behnam.pro")
 }
@@ -101,15 +106,18 @@ struct ServiceResult: Sendable {
     let diagnostic: Diagnostic?
     let error: String?
 
-    static func fetch(_ endpoint: ServiceEndpoint, session: URLSession) async -> ServiceResult {
+    static func fetch(_ endpoint: ServiceEndpoint, session: URLSession, ip: String? = nil) async -> ServiceResult {
         do {
-            var request = URLRequest(url: endpoint.url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
+            var request = URLRequest(url: endpoint.lookupURL(ip: ip), cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 12)
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            request.setValue("IPinfo-macOS/1.0", forHTTPHeaderField: "User-Agent")
+            request.setValue("IPinfo-macOS", forHTTPHeaderField: "User-Agent")
             let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { throw CheckError.invalidResponse }
             guard http.statusCode == 200 else { throw CheckError.http(http.statusCode) }
             let diagnostic = try Diagnostic(data: data)
+            if let ip, Diagnostic.canonicalIP(diagnostic.ip) != Diagnostic.canonicalIP(ip) {
+                throw CheckError.invalidResponse
+            }
             return ServiceResult(endpoint: endpoint, diagnostic: diagnostic, error: nil)
         } catch {
             let message: String
@@ -136,9 +144,9 @@ struct Comparison: Sendable {
         return "The results differ. Both services are shown."
     }
 
-    static func check(session: URLSession = .shared) async -> Comparison {
-        async let first = ServiceResult.fetch(.primary, session: session)
-        async let second = ServiceResult.fetch(.secondary, session: session)
+    static func check(session: URLSession = .shared, ip: String? = nil) async -> Comparison {
+        async let first = ServiceResult.fetch(.primary, session: session, ip: ip)
+        async let second = ServiceResult.fetch(.secondary, session: session, ip: ip)
         return await Comparison(primary: first, secondary: second)
     }
 }

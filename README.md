@@ -28,6 +28,24 @@ and shows both services when they differ. If either check fails, both service
 statuses remain visible; a timeout or error never counts as an identical result.
 Refresh after changing a VPN or proxy. Each panel supports copying its IP and
 opening the corresponding website.
+The same cask also installs an `ipinfo` terminal command:
+
+```sh
+ipinfo                              # Check your public IP through both services.
+ipinfo 1.2.3.4                      # Look up a particular IPv4 address.
+ipinfo 2606:4700:4700::1111          # Look up an IPv6 address.
+ipinfo --json 8.8.8.8               # Structured output for scripts.
+ipinfo --help
+```
+
+Both current-IP and explicit-IP checks query the two sources. Matching results
+print only `ip.bea.sh`; differences print both. A failed source appears with an
+error alongside the other result. JSON output is an object keyed by the displayed
+service names. Exit codes are `0` when both requests succeed, `1` if either fails,
+and `2` for invalid arguments. Invalid IP addresses are rejected before requests.
+The CLI does not open a window. If a shell function or alias already uses the
+name `ipinfo`, run `command ipinfo` or update that wrapper to forward arguments
+to the installed executable.
 
 ```sh
 brew install --cask behnambagheri/tap/ipinfo
@@ -80,15 +98,54 @@ dist/macos/IPinfo.app/Contents/MacOS/IPinfo --check
 open dist/macos/IPinfo.app
 ```
 
-Packaging runs the Swift comparison tests, compiles both CPU architectures,
+Packaging runs the Swift comparison and CLI tests, compiles both CPU architectures,
 generates the app icon from the existing logo, signs the bundle, and writes a
-ZIP, SHA-256 checksum, and ready-to-publish cask into `dist/macos/`. The optional
+ZIP, DMG, SHA-256 checksums, signing-status JSON, and ready-to-publish cask into
+`dist/macos/`. The DMG includes the app and an Applications shortcut for a manual
+drag-and-drop installation. Homebrew installs both the app and its CLI; manual
+DMG users can run `/Applications/IPinfo.app/Contents/Helpers/ipinfo` directly.
+The optional
 `MACOS_SIGNING_IDENTITY` and `MACOS_NOTARY_PROFILE` environment variables select
 Developer ID signing and a preconfigured `notarytool` keychain profile.
 The `macOS app` GitHub Actions workflow builds pull requests and publishes
 version-tagged releases. Tags must match the numeric `package.json` version.
 After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
 `Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
+
+#### Developer ID signing and notarization
+
+Gatekeeper checks downloaded software's developer identity and notarization,
+independently of whether it asks for protected permissions. The app needs only
+outbound HTTPS requests and has no special entitlements. A DMG alone does not
+change Gatekeeper approval. The supported distribution path uses a **Developer
+ID Application** certificate with its private key, hardened-runtime signing,
+Apple notarization, and stapled tickets for both the app and DMG.
+
+Configure these repository Actions secrets together to activate that path:
+
+| Secret | Value |
+| --- | --- |
+| `MACOS_CERTIFICATE_P12_BASE64` | Base64-encoded exported Developer ID Application `.p12`, including its private key |
+| `MACOS_CERTIFICATE_PASSWORD` | Password used to export the `.p12` |
+| `MACOS_SIGNING_IDENTITY` | Full `Developer ID Application: … (TEAMID)` identity |
+| `APPLE_ID` | Apple account for notarization |
+| `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for notarization |
+| `APPLE_TEAM_ID` | Apple Developer team ID |
+
+See [Apple's Developer ID distribution guidance](https://developer.apple.com/developer-id/)
+and [notarization workflow](https://developer.apple.com/documentation/security/customizing-the-notarization-workflow).
+Use the account's certificate export and repository secret settings; do not
+commit credentials or paste them into source files.
+
+The workflow imports credentials into a temporary runner keychain, signs the
+nested CLI before the app, submits and staples the app, generates ZIP and DMG,
+then signs, notarizes, and staples the DMG. Gatekeeper assessments must pass
+before signed artifacts are published. Cleanup restores the runner's keychain
+search list and deletes the temporary certificate and keychain. Pull request
+builds never receive these secrets. With no signing secrets configured, builds
+remain ad-hoc signed; a partially configured set fails rather than publishing
+a release with an ambiguous signing state. `distribution-status.json` records
+the actual release status, and notarized casks omit the first-launch caveat.
 
 ### Hosted service
 
