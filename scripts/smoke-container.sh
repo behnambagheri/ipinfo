@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 image="${1:-ipinfo:test}"
-container="$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges -p 127.0.0.1::8080 "$image")"
+container="$(docker run -d --read-only --cap-drop ALL --security-opt no-new-privileges --tmpfs /var/lib/ipinfo/geolite2:rw,uid=10001,gid=10001,mode=0750 -e ECHOIP_DATABASE_UPDATE_ENABLED=false -p 127.0.0.1::8080 "$image")"
 trap 'docker logs "$container"; docker rm -f "$container" >/dev/null' EXIT
 port="$(docker port "$container" 8080/tcp | awk -F: '{print $NF}')"
 origin="http://127.0.0.1:$port"

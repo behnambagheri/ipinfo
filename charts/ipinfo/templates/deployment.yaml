@@ -1,3 +1,7 @@
+{{- $updates := include "ipinfo.databaseUpdates" . | fromJson }}
+{{- if and $updates.existingClaim (ne (int .Values.replicaCount) 1) }}
+{{- fail "databaseUpdates.existingClaim requires replicaCount=1; update directories must not be shared by concurrent writers" }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -27,6 +31,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
+        fsGroup: 10001
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -52,6 +57,23 @@ spec:
               value: {{ .Values.portLookup | quote }}
             - name: ECHOIP_REVERSE_LOOKUP
               value: {{ .Values.reverseLookup | quote }}
+            - name: ECHOIP_DATABASE_UPDATE_CONFIG
+              value: /etc/ipinfo/updates.json
+            - name: ECHOIP_DATABASE_UPDATE_DIR
+              value: /var/lib/ipinfo/geolite2
+            {{- if $updates.proxySecret.name }}
+            - name: ECHOIP_DATABASE_UPDATE_PROXY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $updates.proxySecret.name | quote }}
+                  key: {{ $updates.proxySecret.key | quote }}
+            {{- end }}
+          volumeMounts:
+            - name: database-update-settings
+              mountPath: /etc/ipinfo
+              readOnly: true
+            - name: database-updates
+              mountPath: /var/lib/ipinfo/geolite2
           startupProbe:
             httpGet:
               path: /ip
@@ -68,6 +90,18 @@ spec:
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: database-update-settings
+          configMap:
+            name: {{ default (printf "%s-database-updates" (include "ipinfo.fullname" .)) $updates.existingConfigMap }}
+        - name: database-updates
+          {{- if $updates.existingClaim }}
+          persistentVolumeClaim:
+            claimName: {{ $updates.existingClaim | quote }}
+          {{- else }}
+          emptyDir:
+            sizeLimit: {{ $updates.storageSize | quote }}
+          {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

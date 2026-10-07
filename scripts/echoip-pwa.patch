@@ -1,5 +1,17 @@
 --- a/http/http.go
 +++ b/http/http.go
+@@ -61,0 +62 @@
++	databaseGeneration uint64
+@@ -152 +153 @@
+-	if ok {
++	if ok && response.databaseGeneration == databaseGeneration(s.gr) {
+@@ -158,3 +159 @@
+-	country, _ := s.gr.Country(ip)
+-	city, _ := s.gr.City(ip)
+-	asn, _ := s.gr.ASN(ip)
++	country, city, asn, generation := lookupGeo(s.gr, ip)
+@@ -185,0 +185 @@
++		databaseGeneration: generation,
 @@ -517 +517 @@
 -	return r.Handler()
-+	return withPWAAssets(r.Handler(), s.databaseDates)
++	return withPWAAssets(r.Handler(), s.databaseMetadata)

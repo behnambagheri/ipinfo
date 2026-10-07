@@ -131,7 +131,7 @@ test('database dates come from deployed MMDB metadata without client IP or datab
   const response = await handleRequest(new Request('https://ip.bea.sh/database-info'), env);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('cache-control'), 'no-store');
-  assert.deepEqual(await response.json(), { source: 'GeoLite2', release: env.GEOIP_RELEASE, databases: {
+  assert.deepEqual(await response.json(), { source: 'GeoLite2', release: env.GEOIP_RELEASE, updates: { enabled: false }, databases: {
     ASN: '2026-10-05T08:15:27.000Z', City: '2026-10-06T21:21:33.000Z', Country: '2026-10-06T21:21:33.000Z',
   } });
   assert.equal(env.calls.length, 1);

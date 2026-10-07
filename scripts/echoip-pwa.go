@@ -7,20 +7,28 @@ import (
 	"net/http"
 	"path"
 	"time"
+
+	"github.com/mpolden/echoip/iputil/geo"
 )
 
 //go:embed pwa-assets
 var pwaAssets embed.FS
 
 // Serve embedded public assets without changing echoip's client-IP handling.
-func (s *Server) databaseDates() map[string]string {
-	if reader, ok := s.gr.(interface{ DatabaseDates() map[string]string }); ok {
-		return reader.DatabaseDates()
+func (s *Server) databaseMetadata() map[string]interface{} {
+	if reader, ok := s.gr.(interface {
+		DatabaseMetadata() (map[string]string, geo.UpdateStatus)
+	}); ok {
+		dates, status := reader.DatabaseMetadata()
+		return map[string]interface{}{"source": "GeoLite2", "databases": dates, "updates": status}
 	}
-	return map[string]string{}
+	if reader, ok := s.gr.(interface{ DatabaseDates() map[string]string }); ok {
+		return map[string]interface{}{"source": "GeoLite2", "databases": reader.DatabaseDates()}
+	}
+	return map[string]interface{}{"source": "GeoLite2", "databases": map[string]string{}}
 }
 
-func withPWAAssets(next http.Handler, dates ...func() map[string]string) http.Handler {
+func withPWAAssets(next http.Handler, metadata ...func() map[string]interface{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Path
 		if name == "/database-info" {
@@ -29,18 +37,15 @@ func withPWAAssets(next http.Handler, dates ...func() map[string]string) http.Ha
 				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 				return
 			}
-			metadata := map[string]string{}
-			if len(dates) > 0 {
-				metadata = dates[0]()
+			info := map[string]interface{}{"source": "GeoLite2", "databases": map[string]string{}}
+			if len(metadata) > 0 {
+				info = metadata[0]()
 			}
 			w.Header().Set("Content-Type", "application/json; charset=utf-8")
 			w.Header().Set("Cache-Control", "no-store")
 			w.Header().Set("X-Content-Type-Options", "nosniff")
 			if r.Method == http.MethodGet {
-				json.NewEncoder(w).Encode(struct {
-					Source    string            `json:"source"`
-					Databases map[string]string `json:"databases"`
-				}{"GeoLite2", metadata})
+				json.NewEncoder(w).Encode(info)
 			}
 			return
 		}

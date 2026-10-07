@@ -14,7 +14,7 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG ECHOIP_REV=27646b3c4c39041baf8734063e87e71d46f53362
 ARG ECHOIP_SHA256=7f40c90364a8be735952aa7380cb92f36a15f732cb64c9fc29bea3bd4494c3e7
-RUN apk add --no-cache curl patch
+RUN apk add --no-cache curl patch build-base
 WORKDIR /src
 RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${ECHOIP_REV}" -o /tmp/echoip.tar.gz \
     && echo "${ECHOIP_SHA256}  /tmp/echoip.tar.gz" | sha256sum -c - \
@@ -22,24 +22,32 @@ RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${EC
 COPY --from=ui /build/dist/public/ ./http/pwa-assets/
 COPY scripts/echoip-pwa.go ./http/pwa.go
 COPY scripts/echoip-database.go ./iputil/geo/database.go
+COPY scripts/echoip-update.go ./iputil/geo/update.go
+COPY scripts/echoip-update_test.go ./iputil/geo/update_test.go
+COPY tests/fixtures/ ./iputil/geo/update-fixtures/
+COPY scripts/echoip-lookup.go ./http/lookup.go
+COPY scripts/echoip-lookup_test.go ./http/lookup_test.go
 COPY scripts/echoip-pwa_test.go ./http/pwa_test.go
 COPY scripts/echoip-pwa.patch /tmp/echoip-pwa.patch
-RUN patch -p1 < /tmp/echoip-pwa.patch && go test ./http
+COPY scripts/echoip-main.patch /tmp/echoip-main.patch
+RUN patch -p1 < /tmp/echoip-pwa.patch && patch -p1 < /tmp/echoip-main.patch && go test -race ./http ./iputil/geo
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/echoip ./cmd/echoip
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
 RUN apk add --no-cache ca-certificates curl jq
 COPY scripts/download-geolite2.sh /usr/local/bin/download-geolite2
-RUN sh /usr/local/bin/download-geolite2 /data/geolite2
+RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN sh /usr/local/bin/download-geolite2 /data/geolite2
 
 FROM alpine:3.23
 RUN apk add --no-cache ca-certificates
+RUN mkdir -p /var/lib/ipinfo/geolite2 && chown -R 10001:10001 /var/lib/ipinfo
 COPY --from=echoip /out/echoip /opt/echoip/echoip
 COPY --from=geolite2 /data/geolite2/ /data/geolite2/
 COPY --from=ui /build/html/ /data/html/
 COPY scripts/entrypoint.sh /usr/local/bin/ipinfo-entrypoint
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/ipinfo/THIRD_PARTY_NOTICES.md
 USER 10001:10001
+VOLUME ["/var/lib/ipinfo/geolite2"]
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/ip || exit 1
 ENTRYPOINT ["/bin/sh", "/usr/local/bin/ipinfo-entrypoint"]

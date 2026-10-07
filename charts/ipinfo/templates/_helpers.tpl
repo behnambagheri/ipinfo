@@ -14,3 +14,7 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | quote }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end -}}
+{{/* Keep new update settings available when upgrading older releases with --reuse-values. */}}
+{{- define "ipinfo.databaseUpdates" -}}
+{{- mergeOverwrite (dict "enabled" true "interval" "168h" "proxy" "" "existingConfigMap" "" "proxySecret" (dict "name" "" "key" "proxy") "storageSize" "1Gi" "existingClaim" "") (default (dict) .Values.databaseUpdates) | toJson -}}
+{{- end -}}

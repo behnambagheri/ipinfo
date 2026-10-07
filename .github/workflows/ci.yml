@@ -56,6 +56,8 @@ jobs:
           load: true
           tags: ipinfo:test
           no-cache-filters: geolite2
+          secrets: |
+            github_token=${{ github.token }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Container smoke test
@@ -92,6 +94,8 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           no-cache-filters: geolite2
+          secrets: |
+            github_token=${{ github.token }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           provenance: true

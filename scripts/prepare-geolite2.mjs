@@ -104,7 +104,7 @@ export async function prepareGeoLite2() {
   const digest = createHash('sha256').update(names.map(name => databases[name].sha256).join('')).digest('hex');
   const release = `geolite2/${latest.tag_name}-${digest.slice(0, 16)}`;
   for (const name of names) databases[name].key = `${release}/GeoLite2-${name}.mmdb`;
-  const manifest = { schema: 1, release, upstreamTag: latest.tag_name, chunkSize, databases };
+  const manifest = { schema: 1, release, upstreamTag: latest.tag_name, downloadedAt: new Date().toISOString(), chunkSize, databases };
   // Each deployment owns its asset set; only current files are uploaded.
   await packageGeoLiteAssets(manifest);
   console.log(`Prepared ${release}; verified all three SHA-256 digests.`);

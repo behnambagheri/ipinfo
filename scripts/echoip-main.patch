@@ -1,0 +1,6 @@
+--- a/cmd/echoip/main.go
++++ b/cmd/echoip/main.go
+@@ -55,1 +55,2 @@
+-	cache := http.NewCache(*cacheSize)
++	r = geo.EnableDatabaseUpdates(r, *countryFile, *cityFile, *asnFile)
++	cache := http.NewCache(*cacheSize)

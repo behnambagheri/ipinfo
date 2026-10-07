@@ -26,6 +26,7 @@ async function databases(env) {
         totalTreeBytes += meta.treeSize;
       }
       if (totalTreeBytes > MAX_TREE_BYTES) throw new Error('GeoLite2 search trees exceed Worker memory budget');
+      result.manifest = manifest;
       return result;
     })() };
     readers.set(bucket, state);
@@ -36,7 +37,10 @@ async function databases(env) {
 
 export async function databaseInfo(env) {
   const db = await databases(env);
-  return { source: 'GeoLite2', release: env.GEOIP_RELEASE, databases: Object.fromEntries(
+  const downloaded = db.manifest.downloadedAt;
+  return { source: 'GeoLite2', release: env.GEOIP_RELEASE,
+    updates: { enabled: false, last_successful_update: typeof downloaded === 'string' && Number.isFinite(Date.parse(downloaded)) ? new Date(downloaded).toISOString() : undefined },
+    databases: Object.fromEntries(
     ['ASN', 'City', 'Country'].flatMap(name => {
       const value = db[name].meta.buildEpoch;
       return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? [[name, new Date(value).toISOString()]] : [];

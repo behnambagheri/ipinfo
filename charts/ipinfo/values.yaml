@@ -25,6 +25,17 @@ trustedHeaders: ""
 cacheSize: 0
 portLookup: false
 reverseLookup: true
+databaseUpdates:
+  enabled: true
+  interval: "168h"
+  proxy: ""
+  existingConfigMap: ""
+  proxySecret:
+    name: ""
+    key: proxy
+  storageSize: 1Gi
+  # Optional durable storage. A shared update directory requires one replica.
+  existingClaim: ""
 resources:
   requests:
     cpu: 50m

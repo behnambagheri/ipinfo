@@ -30,7 +30,14 @@
           section.querySelector("[data-database-details]").classList.add("hidden");
           section.querySelector("[data-database-common]").classList.remove("hidden");
         }
-        if (dates.length > 0) section.classList.remove("hidden");
+        const updated = new Date(info.updates?.last_successful_update || "");
+        if (Number.isFinite(updated.getTime())) {
+          const time = section.querySelector("time[data-database-success-time]");
+          time.dateTime = updated.toISOString();
+          time.textContent = new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(updated) + " UTC";
+          section.querySelector("[data-database-success]").classList.remove("hidden");
+        }
+        if (dates.length > 0 || Number.isFinite(updated.getTime())) section.classList.remove("hidden");
       } catch {
         // Metadata failure must not interfere with IP lookup or page interactions.
       }

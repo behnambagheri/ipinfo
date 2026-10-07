@@ -74,6 +74,45 @@
           "type": "boolean"
         }
       }
+    },
+    "databaseUpdates": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "interval": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^([0-9]+(\\.[0-9]+)?(h|m|s))+$"
+        },
+        "proxy": {
+          "type": "string",
+          "pattern": "^$|^(https?|socks5h?)://[^\\s]+$"
+        },
+        "existingConfigMap": {
+          "type": "string"
+        },
+        "existingClaim": {
+          "type": "string"
+        },
+        "storageSize": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*(Mi|Gi)$"
+        },
+        "proxySecret": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
     }
   }
 }

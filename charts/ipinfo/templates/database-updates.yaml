@@ -1,0 +1,12 @@
+{{- $updates := include "ipinfo.databaseUpdates" . | fromJson }}
+{{- if not $updates.existingConfigMap }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ipinfo.fullname" . }}-database-updates
+  labels:
+    {{- include "ipinfo.labels" . | nindent 4 }}
+data:
+  updates.json: |
+    {{ dict "enabled" $updates.enabled "interval" $updates.interval "proxy" $updates.proxy | toJson }}
+{{- end }}

@@ -10,13 +10,16 @@ async function datesPage(fetcher) {
   const common = { hidden: true, classList: { remove: () => { common.hidden = false; } } };
   const details = { hidden: false, classList: { add: () => { details.hidden = true; } } };
   const shared = {};
+  const success = { hidden: true, classList: { remove: () => { success.hidden = false; } } };
+  const successTime = {};
   const section = { querySelectorAll: () => times,
-    querySelector: selector => ({ 'time[data-database-shared]': shared, '[data-database-common]': common, '[data-database-details]': details })[selector],
+    querySelector: selector => ({ 'time[data-database-shared]': shared, '[data-database-common]': common, '[data-database-details]': details,
+      '[data-database-success]': success, 'time[data-database-success-time]': successTime })[selector],
     classList: { remove: () => { hidden = false; } } };
   runInNewContext(script, { document: { getElementById: () => section }, window: { location: { origin: 'https://ip.behnam.pro' } },
     URL, AbortSignal, fetch: fetcher });
   await new Promise(setImmediate);
-  return { times, common, details, shared, get hidden() { return hidden; } };
+  return { times, common, details, shared, success, successTime, get hidden() { return hidden; } };
 }
 
 test('footer shows each actual database build date in UTC using only the local metadata endpoint', async () => {
@@ -56,4 +59,14 @@ test('missing or failed metadata does not invent dates or interfere with the pag
   assert.equal(partial.times[1].textContent, 'Unavailable');
   assert.equal(partial.common.hidden, true);
   assert.equal(partial.details.hidden, false);
+});
+
+test('successful update time is displayed separately from database build dates', async () => {
+  const page = await datesPage(async () => Response.json({ databases: { ASN: '2026-10-06T08:15:27Z', City: '2026-10-06T21:21:33Z', Country: '2026-10-06T21:21:33Z' },
+    updates: { last_successful_update: '2026-10-07T11:30:00Z', last_successful_check: '2026-10-08T12:00:00Z' } }));
+  assert.equal(page.shared.textContent, 'Oct 6, 2026');
+  assert.equal(page.success.hidden, false);
+  assert.equal(page.successTime.dateTime, '2026-10-07T11:30:00.000Z');
+  assert.match(page.successTime.textContent, /Oct 7, 2026/);
+  assert.match(page.successTime.textContent, /UTC$/);
 });

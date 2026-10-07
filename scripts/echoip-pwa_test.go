@@ -10,7 +10,9 @@ import (
 func TestDatabaseDates(t *testing.T) {
 	handler := withPWAAssets(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Fatal("metadata endpoint reached the IP lookup handler")
-	}), func() map[string]string { return map[string]string{"ASN": "2026-10-06T08:15:27Z"} })
+	}), func() map[string]interface{} {
+		return map[string]interface{}{"source": "GeoLite2", "databases": map[string]string{"ASN": "2026-10-06T08:15:27Z"}}
+	})
 	for _, method := range []string{http.MethodGet, http.MethodHead, http.MethodPost} {
 		response := httptest.NewRecorder()
 		handler.ServeHTTP(response, httptest.NewRequest(method, "/database-info", nil))

@@ -191,6 +191,95 @@ domain; review the current record before the first cutover. The Worker needs
 no origin server, container, R2 bucket, or runtime secret.
 Its deployment includes the database assets.
 
+## Automatic container database updates
+
+The container runs a built-in updater. It checks once after startup and then
+at the configured interval, **seven days (`168h`) by default**. A failed check
+retries after at most one hour, while the existing databases continue serving.
+A release with unchanged checksums updates only the last successful check;
+it does not claim a new database update or download the same files again.
+
+Downloads use one resolved P3TERX release, published SHA-256 checksums, expected
+MMDB types, and build dates that cannot go backwards. All three databases are
+installed as one immutable generation and reloaded together without restarting
+the HTTP service. Response caches distinguish generations. An incomplete,
+corrupt, or unreachable download leaves the active generation and last
+successful update time intact. The previous generation is retained locally.
+
+The footer displays **Last successful update** separately from the database
+build date. The initial value comes from the image's verified download receipt;
+later values are recorded after a runtime update is fully installed.
+`/database-info` exposes update status, interval, last successful check, and
+last error. Proxy credentials are never returned by this endpoint or written
+into update error messages.
+
+### Helm / ConfigMap settings
+
+```yaml
+databaseUpdates:
+  enabled: true
+  interval: "168h" # Use "24h" for daily checks.
+  proxy: ""       # For example: "http://proxy.example:3128"
+```
+
+The chart generates `<release>-ipinfo-database-updates`, with an `updates.json`
+key, and mounts it at `/etc/ipinfo/updates.json`. The app rereads this file at
+least every minute; projected ConfigMap changes take effect after Kubernetes
+refreshes the mount. Change the Helm values for a durable configuration change,
+or edit that ConfigMap for an immediate operational adjustment. A later Helm
+upgrade rewrites the generated ConfigMap from Helm values.
+
+To use your own ConfigMap, set `databaseUpdates.existingConfigMap` to its name
+and provide the same `updates.json` key:
+
+```json
+{"enabled": true, "interval": "24h", "proxy": "http://proxy.example:3128"}
+```
+
+HTTP, HTTPS, SOCKS5, and SOCKS5h proxy URLs are supported. This proxy applies
+only to database update requests, including release metadata and all assets.
+For a proxy URL held in a Secret, set `databaseUpdates.proxySecret.name` and
+`databaseUpdates.proxySecret.key` (default key: `proxy`). The explicit proxy
+environment value overrides the ConfigMap's proxy field.
+
+Each pod gets its own writable `/var/lib/ipinfo/geolite2` volume while the
+container root remains read-only. Default `emptyDir` storage survives container
+restarts within the pod; replacing the pod discards runtime downloads and starts
+from its bundled snapshot. To retain downloads across pod replacements, provide
+`databaseUpdates.existingClaim` and `replicaCount: 1`. An update directory must
+have a single writer; the chart rejects a shared claim with multiple replicas.
+
+### Environment settings / Docker
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `ECHOIP_DATABASE_UPDATE_ENABLED` | `true` | Enable or disable automatic checks |
+| `ECHOIP_DATABASE_UPDATE_INTERVAL` | `168h` | Go duration; `24h` for daily checks |
+| `ECHOIP_DATABASE_UPDATE_PROXY` | empty | Optional proxy URL for update downloads |
+| `ECHOIP_DATABASE_UPDATE_CONFIG` | empty | Optional JSON configuration file |
+| `ECHOIP_DATABASE_UPDATE_DIR` | `/var/lib/ipinfo/geolite2` | Writable generation/state directory |
+
+Explicit environment variables override the JSON file. Environment changes
+require a container restart; the mounted JSON configuration reloads dynamically.
+Automatic updates require all three configured databases to be GeoLite2.
+Disabled databases and custom GeoIP2 databases continue to work without being
+replaced by the public GeoLite2 updater.
+
+```sh
+docker run --rm --read-only --cap-drop ALL \
+  --security-opt no-new-privileges \
+  -p 127.0.0.1:8080:8080 \
+  -v ipinfo-geolite2:/var/lib/ipinfo/geolite2 \
+  -e ECHOIP_DATABASE_UPDATE_INTERVAL=168h \
+  -e ECHOIP_DATABASE_UPDATE_PROXY=http://proxy.example:3128 \
+  ghcr.io/behnambagheri/ipinfo:latest
+```
+
+The image declares a writable update volume even when a named volume is omitted.
+Use a named volume to retain downloads when recreating a Docker container.
+Cloudflare Workers continue to update their packaged databases during deployment;
+the container's runtime timer and ConfigMap settings apply to the self-hosted service.
+
 ## Container
 
 ```sh
