@@ -48,6 +48,7 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | Endpoint | Result |
 | --- | --- |
 | `/`, `/ip` | Plain IP (`/` also provides HTML or JSON through content negotiation) |
+| `/usage` | Terminal-friendly plain-text guide with commands and endpoint descriptions |
 | `/json` | Complete available information |
 | `/ip-decimal` | Decimal IP; IPv6 uses an exact decimal string |
 | `/country`, `/country-iso`, `/country-ir` | Country name, ISO code, whether the IP is in Iran |
@@ -62,11 +63,18 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | `/port/<number>` | TCP check when enabled; otherwise HTTP 501 |
 
 ```sh
+curl ip.bea.sh/usage
 curl https://ip.bea.sh/json
 curl 'https://ip.behnam.pro/json?ip=8.8.8.8'
 curl 'https://ip.behnam.pro/json?ip=2606:4700:4700::1111'
 curl 'https://ip.behnam.pro/region-name?ip=81.2.69.160'
 ```
+
+`/usage` returns aligned plain text for all clients, including browsers, without
+requiring an IP lookup or working geolocation databases. Examples use the
+requested service's origin and reflect its custom-lookup, port-testing, and
+statistics configuration. HEAD returns the same headers without a body.
+Reading the guide does not increment diagnostic usage counters.
 
 Lookups support GET and HEAD; OPTIONS returns the CORS policy. Missing fields
 return HTTP 404. JSON omits unavailable fields. `user_agent` is consistently the

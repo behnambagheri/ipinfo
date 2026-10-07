@@ -5,6 +5,7 @@ import { assets } from './assets.generated.mjs';
 import { lookupGeoIP, databaseInfo } from './geoip.mjs';
 import { renderStatistics } from './statistics-page.generated.mjs';
 import { usageEvent } from './statistics.mjs';
+import { renderUsage } from './usage.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -43,6 +44,7 @@ async function diagnosticResponse(request, env = {}, context = {}) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...securityHeaders, 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS', 'Access-Control-Allow-Headers': 'Accept' } });
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
+  if (url.pathname === '/usage') return response(renderUsage(url, context), 200, undefined, head);
   if (['/stats', '/stats.json'].includes(url.pathname)) {
     if (!context.statistics) return json({ error: 'Statistics are not configured.' }, 503, head);
     if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site }), 200, 'text/html; charset=utf-8', head);
