@@ -3,6 +3,7 @@
 @source "../html/script.html";
 @source "../html/network.html";
 @source "../html/usage.html";
+@source "../worker/lookup-error.html";
 @plugin "daisyui" {
   themes: false;
   logs: false;

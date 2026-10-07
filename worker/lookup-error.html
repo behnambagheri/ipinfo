@@ -1,0 +1,9 @@
+{{ if .LookupError }}
+<div role="alert" class="alert alert-soft alert-error alert-vertical items-start sm:alert-horizontal sm:items-center">
+  <div>
+    <p class="font-semibold">Lookup unavailable</p>
+    <p class="mt-1 text-sm">{{ .LookupError }}</p>
+  </div>
+  <a href="{{ .LookupRetryURL }}" class="btn btn-sm">Retry lookup</a>
+</div>
+{{ end }}

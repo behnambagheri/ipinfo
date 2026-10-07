@@ -19,7 +19,9 @@ function condition(text) {
   if (parts[0] === 'or') return `(${parts.slice(1).map(field).join(' || ')})`;
   return field(text);
 }
-const source = (await inline('index.html')).replace("<p class=\"text-xs\">GeoLite2 data created by <a href=\"https://www.maxmind.com\" class=\"underline\">MaxMind</a>.</p>", '<p class="text-xs">Fallback location data via IP Guide, provided by <a href="https://www.maxmind.com" class="underline">MaxMind</a>.</p>').replaceAll('echoip and GeoLite2', 'Cloudflare, IPWHOIS and IP Guide').replaceAll("Port checks test the connection's IP address.", 'Custom lookups use IPWHOIS with IP Guide fallback.').replace('Look up another IP address</label>', 'Look up another IP address <span class="font-normal text-base-content/60">(via IPWHOIS / IP Guide)</span></label>');
+// The container resolves addresses locally; this alert handles external Worker lookup failures.
+const lookupError = await readFile('worker/lookup-error.html', 'utf8');
+const source = (await inline('index.html')).replace("<p class=\"text-xs\">GeoLite2 data created by <a href=\"https://www.maxmind.com\" class=\"underline\">MaxMind</a>.</p>", '<p class="text-xs">Fallback location data via IP Guide and GeoJS, provided by <a href="https://www.maxmind.com" class="underline">MaxMind</a>.</p>').replaceAll('echoip and GeoLite2', 'Cloudflare, IPWHOIS, IP Guide and GeoJS').replaceAll("Port checks test the connection's IP address.", 'Custom lookups use IPWHOIS with IP Guide and GeoJS fallbacks.').replace('Look up another IP address</label>', 'Look up another IP address <span class="font-normal text-base-content/60">(via IPWHOIS / IP Guide / GeoJS)</span></label>').replace('<section aria-labelledby="ip-title"', `${lookupError}<section aria-labelledby="ip-title"`);
 const root = [];
 const stack = [{ children: root }];
 let cursor = 0;

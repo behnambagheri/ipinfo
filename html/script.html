@@ -69,7 +69,7 @@
       document.getElementById("query-ip-field")?.classList.toggle("hidden", isPort);
       port.disabled = !isPort;
       command.textContent = `curl '${queryURL().href.replaceAll("'", "%27")}'`;
-      status.textContent = "Current address preview";
+      status.textContent = data.error ? "Lookup unavailable" : "Current address preview";
       if (isPort) {
         status.textContent = "Ready to test";
         output.textContent = "Run the query to check whether this port is reachable.";

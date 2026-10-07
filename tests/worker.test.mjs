@@ -32,7 +32,7 @@ test('shared HTML renders safely with active map and hides container-only port f
   const html = await result.text();
   assert.match(html, /IPinfo — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
   assert.match(html, /&lt;\/script&gt;/); assert.ok(!html.includes('</script><script>alert(1)</script>'));
-  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare, IPWHOIS and IP Guide/);
+  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare, IPWHOIS, IP Guide and GeoJS/);
   assert.ok(result.headers.has('Content-Security-Policy'));
 });
 test('missing geolocation produces a useful map placeholder', async () => {
@@ -58,11 +58,11 @@ test('invalid custom IP never reaches a provider, private lookups stay local, an
   let calls = 0;
   const redirected = await handleRequest(request('/json?ip=1.1.1.1'), {}, {}, async (url, options) => {
     calls++;
-    assert.ok(['https://ipwho.is/1.1.1.1', 'https://ip.guide/1.1.1.1'].includes(url));
+    assert.ok(['https://ipwho.is/1.1.1.1', 'https://ip.guide/1.1.1.1', 'https://get.geojs.io/v1/ip/geo/1.1.1.1.json'].includes(url));
     assert.equal(options.redirect, 'manual');
     return new Response(null, { status: 302, headers: { Location: 'http://127.0.0.1/' } });
   });
-  assert.equal(redirected.status, 502); assert.equal(calls, 2);
+  assert.equal(redirected.status, 502); assert.equal(calls, 3);
 });
 test('provider throttling falls back without inventing missing geolocation', async () => {
   const fetcher = async url => url.startsWith('https://ipwho.is/')
@@ -78,6 +78,50 @@ test('provider throttling falls back without inventing missing geolocation', asy
     : Response.json({ ip: '1.1.1.1', network: {}, location: { country: 'United Kingdom', latitude: 51.5, longitude: -0.1 } }));
   const locatedData = await located.json();
   assert.equal(locatedData.country_iso, 'GB'); assert.equal(locatedData.country_eu, false);
+});
+test('6.6.6.6 remains usable when the primary fails and IP Guide has no record', async () => {
+  const urls = [];
+  const result = await handleRequest(request('/json?ip=6.6.6.6'), {}, {}, async url => {
+    urls.push(url);
+    if (url.startsWith('https://ipwho.is/')) return new Response('', { status: 429 });
+    if (url.startsWith('https://ip.guide/')) return new Response('', { status: 404 });
+    return Response.json({ ip: '6.6.6.6', country: 'United States', country_code: 'US', asn: 64512, organization_name: 'Unknown', latitude: '37.751', longitude: '-97.822', timezone: 'America/Chicago' });
+  });
+  assert.deepEqual(urls, ['https://ipwho.is/6.6.6.6', 'https://ip.guide/6.6.6.6', 'https://get.geojs.io/v1/ip/geo/6.6.6.6.json']);
+  assert.equal(result.status, 200);
+  const data = await result.json();
+  assert.equal(data.ip, '6.6.6.6'); assert.equal(data.ip_decimal, 101058054);
+  assert.equal(data.source, 'GeoJS'); assert.equal(data.country, 'United States'); assert.equal(data.country_eu, false);
+  assert.equal(data.latitude, 37.751); assert.equal(data.timezone, 'America/Chicago');
+  assert.equal(data.asn, undefined); assert.equal(data.asn_org, undefined); assert.equal(data.city, undefined);
+});
+test('GeoJS accepts IPv6 but rejects mismatched addresses and empty results', async () => {
+  const ip = '2606:4700:4700::1111';
+  const fetcher = data => async url => url.startsWith('https://get.geojs.io/') ? Response.json(data) : new Response('', { status: 503 });
+  const result = await handleRequest(request(`/json?ip=${ip}`), {}, {}, fetcher({ ip, asn: 13335, organization_name: 'Cloudflare', latitude: null, longitude: null }));
+  const data = await result.json();
+  assert.equal(result.status, 200); assert.equal(data.source, 'GeoJS'); assert.equal(data.asn, 'AS13335');
+  assert.equal(typeof data.ip_decimal, 'string'); assert.equal(data.country, undefined); assert.equal(data.latitude, undefined);
+  for (const invalid of [{ ip: '1.1.1.1', country_code: 'US' }, { ip, country_code: 'ZZ', asn: 64512 }, { ip, error: 'No record' }]) {
+    assert.equal((await handleRequest(request(`/json?ip=${ip}`), {}, {}, fetcher(invalid))).status, 502);
+  }
+});
+test('lookup outages keep the browser interface and retry link while the API retains 502 JSON', async () => {
+  const unavailable = async () => new Response('', { status: 503 });
+  const result = await handleRequest(request('/?ip=6.6.6.6', { Accept: 'text/html' }), {}, {}, unavailable);
+  assert.equal(result.status, 502); assert.match(result.headers.get('content-type'), /^text\/html/);
+  const html = await result.text();
+  assert.match(html, /role="alert"/); assert.match(html, /Lookup unavailable/); assert.match(html, /Retry lookup/);
+  assert.match(html, /href="https:\/\/ip.bea.sh\/\?ip=6.6.6.6"/);
+  assert.match(html, /id="ip-address" data-ip="6.6.6.6"/); assert.match(html, /id="lookup-ip"/); assert.match(html, /id="show-my-ip"/);
+  assert.ok(!html.includes('<iframe')); assert.ok(!html.includes('{{'));
+  const api = await handleRequest(request('/json?ip=6.6.6.6', { Accept: 'text/html' }), {}, {}, unavailable);
+  assert.equal(api.status, 502); assert.match(api.headers.get('content-type'), /^application\/json/);
+  assert.deepEqual(await api.json(), { error: 'IP lookup is temporarily unavailable. Please try again later.' });
+  const negotiated = await handleRequest(request('/?ip=6.6.6.6', { Accept: 'application/json' }), {}, {}, unavailable);
+  assert.match(negotiated.headers.get('content-type'), /^application\/json/);
+  const head = await handleRequest(request('/?ip=6.6.6.6', { Accept: 'text/html' }, 'HEAD'), {}, {}, unavailable);
+  assert.equal(head.status, 502); assert.equal(await head.text(), '');
 });
 test('unsupported endpoints, methods, HEAD, and unavailable client IP are explicit', async () => {
   assert.equal((await handleRequest(request('/unknown'))).status, 404);
