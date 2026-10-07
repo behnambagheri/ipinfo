@@ -11,7 +11,7 @@ curl --fail --silent --show-error --location \
   --retry 3 --connect-timeout 15 --max-time 60 \
   --header 'Accept: application/vnd.github+json' \
   --output "$release_metadata" \
-  https://api.github.com/repos/rabuchaim/geolite2mirror/releases/latest
+  https://api.github.com/repos/P3TERX/GeoLite.mmdb/releases/latest
 
 release_tag="$(jq -er '.tag_name' "$release_metadata")"
 printf 'Downloading GeoLite2 databases from release %s\n' "$release_tag"

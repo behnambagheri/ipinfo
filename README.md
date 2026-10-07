@@ -24,22 +24,18 @@ wrap between hextets; copying still includes the complete address.
 | Runtime | Cloudflare edge JavaScript | [echoip](https://github.com/mpolden/echoip) |
 | Visitor IP | Cloudflare's `CF-Connecting-IP` | Connection peer; optionally trusted proxy headers |
 | Visitor geolocation | Cloudflare request metadata | Bundled GeoLite2 databases |
-| Explicit `?ip=` lookup | HTTPS [IPWHOIS](https://ipwhois.io/documentation) with [IP Guide](https://ip.guide) and [GeoJS](https://www.geojs.io/docs/v1/endpoints/geo/) fallbacks, cached for 24 hours | Local GeoLite2 lookup |
+| Explicit `?ip=` lookup | Owned GeoLite2 databases packaged as Worker Static Assets; results cached per database release for 24 hours | Local GeoLite2 lookup |
 | Reverse DNS | Unavailable | Enabled by default |
 | TCP port checks | Unavailable (HTTP 501) | Opt-in via `ECHOIP_PORT_LOOKUP=true` |
 
 The hosted Worker serves visitor metadata without external lookup requests.
-Explicit public-IP lookups send only the queried address to IPWHOIS and, if it
-fails or reaches its quota, IP Guide, then GeoJS if IP Guide also fails or has no record. Reserved
-and private addresses return an address-only result without contacting a
-provider. IPWHOIS's free endpoint has a documented limit of 1,000 requests/day
-per requesting IP and no uptime SLA. Workers may share outbound addresses
-and exhaust this quota. The fallbacks provide available network/location data;
-missing fields stay blank, and GeoJS placeholder/private ASNs are omitted.
-If all providers fail, API requests return HTTP 502 JSON. Browser requests keep
-the IPinfo page with an error message and a retry link, also with HTTP 502.
-Failed lookups are not cached. Each provider request has a four-second timeout. The
-self-hosted container has no external geolocation API dependency.
+Explicit public-IP lookups read our own GeoLite2 ASN, City, and Country data
+through an internal Static Assets binding. No IP is sent to a third-party
+geolocation API. Reserved/private addresses return an address-only result;
+unknown public addresses retain their IP with unavailable fields omitted.
+Database failures return HTTP 502 JSON; browser requests retain the interface
+with an error message and retry link. Failed lookups are not cached.
+The self-hosted container reads the same database types from its image.
 IP geolocation is approximate and can reflect a VPN or provider's location.
 
 ## API
@@ -114,7 +110,8 @@ npm run dev
 
 Open `http://localhost:8787`. Local preview uses the actual loopback connection
 address and has no Cloudflare geolocation metadata; explicit public-IP lookup
-and interface interactions work. Edit `html/` for both interfaces and
+requires `npm run geoip:prepare` first. Interface interactions work. Edit
+`html/` for both interfaces and
 `ui/styles.css` for theme tokens. `scripts/build-worker.mjs` compiles the
 supported Go-template expressions to JavaScript, then bundles `dist/worker.mjs`.
 Generated CSS and bundles are ignored by Git.
@@ -134,20 +131,57 @@ version tags do not deploy the production Worker.
 The repository needs encrypted Actions secrets `CLOUDFLARE_API_TOKEN` and
 `CLOUDFLARE_ACCOUNT_ID`. The workflow uses the official Cloudflare Wrangler
 action and checks `/healthz` until its `revision` matches the pushed commit,
-so a successful deployment confirms the new code is serving requests.
+so a successful deployment confirms the new code and database release are
+serving requests. It also verifies live IPv4 and IPv6 GeoLite2 lookups.
 
-For a manual deployment through the official Wrangler CLI:
+### Database updates and storage
+
+Worker Static Assets work on the Workers Free plan without enabling R2.
+The database files are split into 4 MiB chunks, below Cloudflare's 25 MiB
+per-file asset limit, and uploaded with the Worker as one version. A small
+IPv4/IPv6 prefix index and a bounded 4 MiB page cache avoid loading the full
+production databases into Worker memory. Public `/__geoip/*` requests return
+404; only the internal asset binding reads the database files.
+
+Every CI run resolves the latest published release from
+[P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb) once, downloads
+all three files from that release, verifies their published SHA-256 digests,
+checks their MaxMind metadata, and compares lookups with a reference reader.
+Each database's actual build date must be no more than 30 days old.
+The `main` deployment uploads those exact verified assets and pins the Worker
+to their content-derived release identifier. If preparation or upload fails,
+the currently deployed Worker and its assets remain available. Result-cache
+keys include the release, so new deployments cannot reuse an older database's
+lookup result.
+
+The databases are current as of the last successful deployment, according to
+that mirror; nothing downloads at request time. There is no scheduled refresh.
+Push to `main` or run the CI workflow manually on `main` to refresh without
+changing application code. Local `npm run build` builds the UI and Worker only;
+`npm run geoip:prepare` explicitly fetches and packages fresh databases.
+Container builds download their own latest snapshot from the same mirror;
+an existing running container retains its bundled snapshot until updated.
+
+For a manual deployment through the official Wrangler CLI, with
+`CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set:
 
 ```sh
+npm ci
+npm run geoip:prepare
 npm run build
-npx wrangler@4.148.0 deploy --var BUILD_REVISION:$(git rev-parse HEAD)
+npm test
+npm run geoip:verify
+GEOIP_RELEASE=$(node -p 'require("./dist/geolite2/manifest.json").release')
+npx wrangler deploy --var BUILD_REVISION:$(git rev-parse HEAD) --var GEOIP_RELEASE:$GEOIP_RELEASE
+EXPECTED_REVISION=$(git rev-parse HEAD) EXPECTED_GEOIP_RELEASE=$GEOIP_RELEASE node scripts/verify-worker.mjs
 ```
 
 The deploying credential needs account **Workers Scripts: Edit** and zone
 **Workers Routes: Edit**, **DNS: Edit**, and **Zone: Read** for `bea.sh`.
 Cloudflare can replace an existing DNS record when attaching a Worker custom
-domain; review the current record before the first cutover. No origin server,
-container, database, or secret is required by the Worker.
+domain; review the current record before the first cutover. The Worker needs
+no origin server, container, R2 bucket, or runtime secret.
+Its deployment includes the database assets.
 
 ## Container
 
@@ -171,7 +205,7 @@ upstream base images come from Docker Hub, and npm dependencies come from
 `registry.npmjs.org`.
 
 GeoLite2 ASN, City, and Country databases come from one resolved release of
-[rabuchaim/geolite2mirror](https://github.com/rabuchaim/geolite2mirror).
+[P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb).
 Every download must match its published SHA-256 digest. Rebuild with
 `--no-cache` to refresh the database snapshot. This product includes GeoLite2
 data created by [MaxMind](https://www.maxmind.com), subject to the
@@ -252,7 +286,6 @@ pull it; private pulls require credentials via `imagePullSecrets`.
 
 The container uses [echoip](https://github.com/mpolden/echoip) (BSD 3-Clause),
 GeoLite2/MaxMind, and the database mirror. The Worker uses Cloudflare metadata
-and IPWHOIS with IP Guide and GeoJS fallbacks for explicit public-IP lookup.
-IP Guide and [GeoJS](https://www.geojs.io/) credit
-[MaxMind](https://www.maxmind.com) for their location data. Both interfaces use daisyUI,
+and owned GeoLite2 databases for explicit public-IP lookup.
+GeoLite2 data is created by [MaxMind](https://www.maxmind.com). Both interfaces use daisyUI,
 Tailwind CSS, and [OpenStreetMap](https://www.openstreetmap.org/copyright).

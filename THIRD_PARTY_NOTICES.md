@@ -1,8 +1,11 @@
 # Third-party notices
 
 The container builds and distributes echoip from the revision pinned in the
-Dockerfile. Its BSD 3-Clause license is reproduced below. UI dependencies
-retain their license metadata in npm packages. GeoLite2 data is created by
+Dockerfile. Its BSD 3-Clause license is reproduced below. UI and build dependencies
+retain their license metadata in npm packages. The Worker also distributes
+GeoLite2 files as internal Static Assets; its build uses mmdb-lib under MIT
+for database validation. Synthetic MaxMind-DB test fixtures and their MIT
+license are in tests/fixtures/. GeoLite2 data is created by
 MaxMind and is subject to the GeoLite End User License Agreement
 (https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.
 See the README for attribution and update requirements.

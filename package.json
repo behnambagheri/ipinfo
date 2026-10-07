@@ -5,15 +5,19 @@
     "build:css": "node scripts/embed-styles.mjs",
     "build": "npm run build:css && node scripts/build-assets.mjs && node scripts/build-worker.mjs",
     "test": "node --test",
-    "dev": "npm run build && node scripts/preview.mjs"
+    "dev": "npm run build && node scripts/preview.mjs",
+    "geoip:prepare": "node scripts/prepare-geolite2.mjs",
+    "geoip:verify": "node scripts/verify-geolite2.mjs"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
     "@tailwindcss/postcss": "4.3.3",
     "daisyui": "5.7.47",
     "esbuild": "0.28.2",
+    "mmdb-lib": "3.0.3",
     "postcss": "8.5.29",
-    "tailwindcss": "4.3.3"
+    "tailwindcss": "4.3.3",
+    "wrangler": "4.148.0"
   },
   "version": "1.0.0",
   "description": "IP and network diagnostics for bea.sh"

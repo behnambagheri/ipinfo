@@ -22,7 +22,21 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - name: Fetch and verify the latest GeoLite2 release
+        id: geolite2
+        run: node scripts/prepare-geolite2.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: npm test
+      - name: Compare database range lookups with the reference MMDB reader
+        run: node scripts/verify-geolite2.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: geolite2
+          path: |
+            dist/geolite2/manifest.json
+            dist/geolite2-assets/
+          retention-days: 1
       - name: Check shell syntax
         run: sh -n scripts/entrypoint.sh scripts/download-geolite2.sh
       - uses: azure/setup-helm@v4.3.0
@@ -104,14 +118,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
+      - uses: actions/download-artifact@v4
+        with:
+          name: geolite2
+          path: dist/
+      - name: Select the verified database release
+        id: geolite2
+        run: |
+          node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; const { release } = JSON.parse(readFileSync("dist/geolite2/manifest.json", "utf8")); appendFileSync(process.env.GITHUB_OUTPUT, `release=${release}\n`);'
       - name: Deploy to ip.bea.sh
         uses: cloudflare/wrangler-action@953926a2e2182532811c01a25e53647d93bf07c0 # v4.1.3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: '4.148.0'
-          command: deploy --var BUILD_REVISION:${{ github.sha }}
+          command: deploy --var BUILD_REVISION:${{ github.sha }} --var GEOIP_RELEASE:${{ steps.geolite2.outputs.release }}
       - name: Verify the deployed revision
         run: node scripts/verify-worker.mjs
         env:
           EXPECTED_REVISION: ${{ github.sha }}
+          EXPECTED_GEOIP_RELEASE: ${{ steps.geolite2.outputs.release }}
