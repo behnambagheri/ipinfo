@@ -49,9 +49,9 @@ export async function databaseInfo(env) {
 }
 
 export async function lookupGeoIP(ip, env, context = {}) {
-  if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address' };
+  if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address', country_ir: false };
   // Versioning prevents a new database release from reusing old geolocation results.
-  const key = new Request(`https://ipinfo-cache.invalid/${env.GEOIP_RELEASE}/lookup/${encodeURIComponent(ip)}`);
+  const key = new Request(`https://ipinfo-cache.invalid/${env.GEOIP_RELEASE}/lookup-v2/${encodeURIComponent(ip)}`);
   const cache = globalThis.caches?.default;
   const cached = await cache?.match(key);
   if (cached) return cached.json();
@@ -72,7 +72,7 @@ export function geoIPRecord(ip, city, asn, countryRecord, release) {
   const region = city?.subdivisions?.at(-1);
   const data = {
     ip, ip_decimal: decimalIP(ip), source: 'GeoLite2', database_release: release,
-    country: country?.names?.en, country_iso: country?.iso_code, country_eu: country?.is_in_european_union ?? false,
+    country: country?.names?.en, country_iso: country?.iso_code, country_ir: country?.iso_code === 'IR',
     city: city?.city?.names?.en, region_name: region?.names?.en, region_code: region?.iso_code,
     postal_code: city?.postal?.code, timezone: city?.location?.time_zone,
     latitude: city?.location?.latitude, longitude: city?.location?.longitude,

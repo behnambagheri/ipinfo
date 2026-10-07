@@ -40,7 +40,7 @@ export class LocalDatabases {
   constructor(state, cacheSize = 0) { this.state = state; this.cacheSize = cacheSize; this.cache = new Map(); }
   activate(state) { this.state = state; this.cache.clear(); }
   lookup(ip) {
-    if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address' };
+    if (privateIP(ip)) return { ip, ip_decimal: decimalIP(ip), source: 'Reserved address', country_ir: false };
     const state = this.state;
     if (this.cache.has(ip)) {
       const value = this.cache.get(ip); this.cache.delete(ip); this.cache.set(ip, value);

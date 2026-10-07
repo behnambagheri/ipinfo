@@ -145,3 +145,18 @@ test('deployment health identifies the running revision without IP metadata or u
   assert.equal(result.headers.get('cache-control'), 'no-store');
   assert.equal(await (await handleRequest(request('/healthz', {}, 'HEAD'), { BUILD_REVISION: revision })).text(), '');
 });
+
+test('country_ir identifies Iran in visitor metadata and replaces the EU field and endpoint', async () => {
+  for (const country of ['IR', 'US', 'DE', undefined]) {
+    const value = new Request('https://ip.example/json', { headers: { 'CF-Connecting-IP': '8.8.8.8' } });
+    Object.defineProperty(value, 'cf', { value: { country, isEUCountry: '1' } });
+    const data = await (await handleRequest(value)).json();
+    assert.equal(data.country_ir, country === 'IR'); assert.ok(!('country_eu' in data));
+    const fieldRequest = new Request('https://ip.example/country-ir', { headers: value.headers });
+    Object.defineProperty(fieldRequest, 'cf', { value: value.cf });
+    assert.equal(await (await handleRequest(fieldRequest)).text(), `${country === 'IR'}\n`);
+  }
+  assert.equal((await handleRequest(request('/country-eu'))).status, 404);
+  const reserved = await (await handleRequest(request('/json?ip=127.0.0.1'))).json();
+  assert.equal(reserved.country_ir, false);
+});

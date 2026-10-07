@@ -30,7 +30,10 @@ test "$actual" = "$spoofed"
 
 # The standalone service exposes the same field routes as the Worker.
 curl -fsS "$origin/ip-decimal?ip=8.8.8.8" | grep -Fxq '134744072'
-curl -fsS "$origin/country-eu?ip=8.8.8.8" | grep -Fxq 'false'
+curl -fsS "$origin/country-ir?ip=8.8.8.8" | grep -Fxq 'false'
+curl -fsS "$origin/country-ir?ip=2.188.0.1" | grep -Fxq 'true'
+curl -fsS "$origin/json?ip=2.188.0.1" | jq -e '.country_iso == "IR" and .country_ir == true and (has("country_eu") | not)'
+test "$(curl -sS -o /dev/null -w '%{http_code}' "$origin/country-eu")" = 404
 curl -fsS -A 'ipinfo-smoke' "$origin/user-agent" | grep -Fxq 'ipinfo-smoke'
 test "$(curl -sS -o /dev/null -w '%{http_code}' "$origin/__geoip/anything")" = 404
 test "$(curl -sS -o /dev/null -w '%{http_code}' "$origin/port/80")" = 501

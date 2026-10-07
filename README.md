@@ -50,7 +50,7 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | `/`, `/ip` | Plain IP (`/` also provides HTML or JSON through content negotiation) |
 | `/json` | Complete available information |
 | `/ip-decimal` | Decimal IP; IPv6 uses an exact decimal string |
-| `/country`, `/country-iso`, `/country-eu` | Country name, ISO code, EU membership |
+| `/country`, `/country-iso`, `/country-ir` | Country name, ISO code, whether the IP is in Iran |
 | `/city`, `/region-name`, `/region-code`, `/postal-code` | Location fields |
 | `/asn`, `/asn-org` | ASN and network organization |
 | `/timezone` | Time zone |
