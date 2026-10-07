@@ -1,8 +1,8 @@
 IPinfo includes a graphical app and a standalone `ipinfo` command in every download.
 
 - macOS: universal native app and CLI for Apple Silicon and Intel; DMG, ZIP, and Homebrew cask.
-- Linux: one combined portable archive for AMD64 and one for ARM64.
-- Windows: one combined portable ZIP for AMD64 and one for ARM64.
+- Linux: combined portable archives and native Debian, RPM, and Arch packages for AMD64 and ARM64. Install the downloaded native package with apt, dnf, or pacman.
+- Windows: combined portable ZIPs for AMD64 and ARM64, a Scoop manifest, and WinGet submission manifests.
 - The CLI works on servers without a graphical environment or a Node.js installation.
 - Auto checks both services concurrently, shows only ip.bea.sh when results match, and shows both when they differ.
 - Requests have a five-second per-service timeout by default. Unavailable services are reported without losing successful results.
@@ -12,3 +12,6 @@ IPinfo includes a graphical app and a standalone `ipinfo` command in every downl
 
 Verify downloads against the included SHA256SUMS. Windows packages are unsigned.
 Linux graphical mode requires a desktop, standard GTK/NSS/audio libraries, and Chromium sandbox support; command-line mode does not.
+Native Linux packages install both commands and a desktop-menu entry. GUI libraries are optional on servers.
+Scoop installs both commands and a Start menu shortcut. WinGet provides both commands; launch the GUI with `ipinfo-gui`.
+The WinGet identifier is reserved in the prepared manifests only; installation by name requires acceptance into Microsoft's registry. No project apt/dnf/pacman repository is published by this workflow.

@@ -13,6 +13,11 @@ on:
       - 'scripts/package-macos-ci.mjs'
       - 'scripts/package-desktop.mjs'
       - 'scripts/verify-desktop.mjs'
+      - 'scripts/package-linux.mjs'
+      - 'scripts/arch-package-metadata.mjs'
+      - 'scripts/package-windows-manifests.mjs'
+      - 'scripts/verify-linux-package.sh'
+      - 'scripts/verify-windows-manifests.py'
       - 'public/brand/ipinfo.svg'
       - 'package*.json'
       - '.github/workflows/macos-release.yml'
@@ -52,6 +57,22 @@ jobs:
         run: node --input-type=module -e 'import { readFileSync } from "node:fs"; const { version } = JSON.parse(readFileSync("package.json")); if (process.env.GITHUB_REF_NAME !== `v${version}`) throw new Error("Tag and package version must match");'
       - run: npm run test:desktop
       - run: npm run package:desktop -- ${{ matrix.target }}
+      - name: Build Debian, RPM, and Arch packages
+        if: runner.os == 'Linux'
+        run: npm run package:linux -- ${{ matrix.target }}
+      - name: Verify native Debian package installation
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo bash scripts/verify-linux-package.sh deb "$PWD/$(find dist/desktop/${{ matrix.artifact }} -maxdepth 1 -name '*.deb' -print -quit)"
+      - name: Verify native RPM package installation
+        if: runner.os == 'Linux'
+        run: |
+          docker run --rm -v "$PWD/dist/desktop/${{ matrix.artifact }}:/packages:ro" -v "$PWD/scripts/verify-linux-package.sh:/verify.sh:ro" rockylinux:9 bash -c 'bash /verify.sh rpm "$(find /packages -maxdepth 1 -name "*.rpm" -print -quit)"'
+      - name: Verify native Arch package installation
+        if: matrix.target == 'linux-x64'
+        run: |
+          docker run --rm -v "$PWD/dist/desktop/${{ matrix.artifact }}:/packages:ro" -v "$PWD/scripts/verify-linux-package.sh:/verify.sh:ro" archlinux:base bash -c 'bash /verify.sh archlinux "$(find /packages -maxdepth 1 -name "*.pkg.tar.zst" -print -quit)"'
       - name: Test Linux graphical and standalone command-line executables
         if: runner.os == 'Linux'
         run: |
@@ -66,9 +87,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: IPinfo-${{ matrix.artifact }}
+          compression-level: 0
           path: |
             dist/desktop/${{ matrix.artifact }}/IPinfo-*.zip
             dist/desktop/${{ matrix.artifact }}/IPinfo-*.tar.gz
+            dist/desktop/${{ matrix.artifact }}/bea-ipinfo_*.deb
+            dist/desktop/${{ matrix.artifact }}/bea-ipinfo-*.rpm
+            dist/desktop/${{ matrix.artifact }}/bea-ipinfo-*.pkg.tar.zst
             dist/desktop/${{ matrix.artifact }}/SHA256SUMS-*
           if-no-files-found: error
   package:
@@ -106,14 +131,47 @@ jobs:
             dist/macos/SHA256SUMS
             dist/macos/ipinfo.rb
             dist/macos/distribution-status.json
+  manifests:
+    needs: desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: IPinfo-windows-*
+          path: release/desktop/
+          merge-multiple: true
+      - name: Generate and validate Windows package-manager manifests
+        run: |
+          node scripts/package-windows-manifests.mjs --assets release/desktop --output release/package-managers
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends python3-yaml python3-jsonschema
+          /usr/bin/python3 scripts/verify-windows-manifests.py --assets release/desktop --manifests release/package-managers
+          (cd release/package-managers/winget && zip -r ../IPinfo-winget-manifests.zip manifests)
+          (cd release/package-managers && sha256sum ipinfo.json IPinfo-winget-manifests.zip > SHA256SUMS-manifests)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: IPinfo-package-managers
+          path: |
+            release/package-managers/ipinfo.json
+            release/package-managers/IPinfo-winget-manifests.zip
+            release/package-managers/SHA256SUMS-manifests
+          if-no-files-found: error
   release:
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [package, desktop]
+    needs: [package, desktop, manifests]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
       - uses: actions/download-artifact@v4
         with:
           name: IPinfo-macOS
@@ -128,13 +186,18 @@ jobs:
           pattern: IPinfo-windows-*
           path: release/desktop/
           merge-multiple: true
+      - uses: actions/download-artifact@v4
+        with:
+          name: IPinfo-package-managers
+          path: release/package-managers/
       - name: Publish release assets
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           cp desktop/RELEASE_NOTES.md release/notes.md
-          cat release/macos/SHA256SUMS release/desktop/SHA256SUMS-* > release/SHA256SUMS
+          cat release/macos/SHA256SUMS release/desktop/SHA256SUMS-* release/package-managers/SHA256SUMS-manifests > release/SHA256SUMS
           node --input-type=module -e 'import { readFileSync, appendFileSync } from "node:fs"; const status = JSON.parse(readFileSync("release/macos/distribution-status.json")); appendFileSync("release/notes.md", `\nmacOS signing: ${status.developer_id_signed ? "Developer ID signed" : "ad-hoc signed"}; ${status.notarized ? "Apple-notarized" : "not Apple-notarized; first launch may require approval in Privacy & Security"}.\n`);'
           (cd release/macos && sha256sum -c SHA256SUMS)
           (cd release/desktop && cat SHA256SUMS-* | sha256sum -c -)
-          gh release create "$GITHUB_REF_NAME" release/macos/IPinfo-*-universal.zip release/macos/IPinfo-*-universal.dmg release/desktop/IPinfo-*.zip release/desktop/IPinfo-*.tar.gz release/SHA256SUMS release/macos/ipinfo.rb release/macos/distribution-status.json --verify-tag --title "IPinfo $GITHUB_REF_NAME" --notes-file release/notes.md
+          (cd release/package-managers && sha256sum -c SHA256SUMS-manifests)
+          gh release create "$GITHUB_REF_NAME" release/macos/IPinfo-*-universal.zip release/macos/IPinfo-*-universal.dmg release/desktop/IPinfo-*.zip release/desktop/IPinfo-*.tar.gz release/desktop/bea-ipinfo_*.deb release/desktop/bea-ipinfo-*.rpm release/desktop/bea-ipinfo-*.pkg.tar.zst release/package-managers/ipinfo.json release/package-managers/IPinfo-winget-manifests.zip release/SHA256SUMS release/macos/ipinfo.rb release/macos/distribution-status.json --verify-tag --title "IPinfo $GITHUB_REF_NAME" --notes-file release/notes.md

@@ -30,8 +30,8 @@ GeoLite2 database is required.
 | System | Downloads | Graphical launcher | CLI |
 | --- | --- | --- | --- |
 | macOS 13+ | Universal DMG or ZIP; Homebrew cask | IPinfo.app | `ipinfo` |
-| Linux, glibc | AMD64 or ARM64 `.tar.gz` | `IPinfo-GUI` | `ipinfo` |
-| Windows 10+ | AMD64 or ARM64 `.zip` | `IPinfo-GUI.exe` | `ipinfo.exe` |
+| Linux, glibc | AMD64 or ARM64 `.tar.gz`, `.deb`, `.rpm`, `.pkg.tar.zst` | `IPinfo-GUI` / `ipinfo-gui` | `ipinfo` |
+| Windows 10+ | AMD64 or ARM64 `.zip`; Scoop and WinGet manifests | `IPinfo-GUI.exe` / `ipinfo-gui` | `ipinfo.exe` |
 
 Extract the whole Linux/Windows archive and keep its files together. Run the CLI
 directly from the extracted folder, or use the included user installer:
@@ -60,6 +60,98 @@ currently unsigned. Linux graphical mode needs a desktop, GTK 3/NSS/audio
 libraries, and Chromium sandbox support; a current Ubuntu 22.04+ or equivalent
 distribution is recommended. Alpine/musl is unsupported. Servers can run the
 standalone CLI without those graphical libraries.
+
+#### Linux package managers
+
+Releases also provide a combined **`bea-ipinfo`** native package for each Linux
+architecture. It contains both interfaces, installs the `ipinfo` and
+`ipinfo-gui` commands, and adds IPinfo to the desktop application menu.
+The distinct package name avoids confusing this application with other IPinfo
+clients. Settings remain in the user's configuration directory after upgrades
+and removal.
+
+Download the file matching your distribution and CPU from the release, verify
+it against `SHA256SUMS`, then run the matching command from its download folder:
+
+```sh
+# Debian / Ubuntu, AMD64:
+sudo apt install ./bea-ipinfo_1.2.0-1_amd64.deb
+# Debian / Ubuntu, ARM64:
+sudo apt install ./bea-ipinfo_1.2.0-1_arm64.deb
+
+# Rocky / RHEL / Fedora, AMD64:
+sudo dnf install ./bea-ipinfo-1.2.0-1.x86_64.rpm
+# Rocky / RHEL / Fedora, ARM64:
+sudo dnf install ./bea-ipinfo-1.2.0-1.aarch64.rpm
+
+# Arch Linux, AMD64:
+sudo pacman -U ./bea-ipinfo-1.2.0-1-x86_64.pkg.tar.zst
+# Arch Linux ARM, ARM64:
+sudo pacman -U ./bea-ipinfo-1.2.0-1-aarch64.pkg.tar.zst
+
+ipinfo
+ipinfo 1.2.3.4
+ipinfo-gui
+```
+
+Arch Linux officially supports x86_64; the ARM64 package targets Arch Linux ARM.
+Packages use glibc, so Alpine/musl is unsupported. The CLI requires glibc 2.28+
+and libstdc++; GUI libraries are recommended/optional dependencies. On servers,
+use `apt install --no-install-recommends ./bea-ipinfo_...deb` or
+`dnf install --setopt=install_weak_deps=False ./bea-ipinfo-...rpm` to avoid
+installing desktop libraries. To run the GUI on a minimal installation, install
+the package's recommended dependencies first. Native packages ship the Chromium
+sandbox helper owned by root with mode 4755; no `--no-sandbox` flag is needed.
+
+Remove the application with `sudo apt remove bea-ipinfo`,
+`sudo dnf remove bea-ipinfo`, or `sudo pacman -R bea-ipinfo`. Installing a newer
+downloaded package with the same installation command upgrades it.
+
+These commands install **downloaded release files**. This project currently has
+no public apt, dnf, or pacman repository and no AUR listing; commands such as
+`apt install bea-ipinfo` or `pacman -S bea-ipinfo` will require a published
+repository first. The prepared 1.2.0 artifacts become downloadable only after
+that release is published.
+
+#### Windows package managers
+
+Windows Package Manager (**WinGet**) is the Microsoft-supported option. Each
+release generates submission-ready manifests for **`BehnamBagheri.IPinfo`**, with
+native x64 and ARM64 ZIPs and the actual SHA-256 hashes of that release. WinGet
+installs the complete archive and exposes both `ipinfo` and `ipinfo-gui` commands.
+The entry must be submitted and accepted into Microsoft's registry before this
+public install command is available:
+
+```powershell
+# Available only after WinGet registry acceptance:
+winget install --id BehnamBagheri.IPinfo --exact
+winget upgrade --id BehnamBagheri.IPinfo --exact
+winget uninstall --id BehnamBagheri.IPinfo --exact
+```
+
+Releases also include a **Scoop** manifest, which needs no community registry
+submission. With Scoop already installed, install directly from the published
+manifest URL:
+
+```powershell
+# Available after the 1.2.0 release and its assets are published:
+scoop install https://github.com/behnambagheri/ipinfo/releases/download/v1.2.0/ipinfo.json
+ipinfo
+ipinfo 1.2.3.4
+ipinfo-gui
+# Or open IPinfo from the Start menu.
+scoop uninstall ipinfo
+```
+
+Scoop chooses the native architecture, verifies the ZIP checksum, installs both
+commands, and creates an IPinfo Start menu shortcut. For an upgrade before a
+maintained Scoop bucket exists, uninstall and install the next release's
+manifest URL; user settings are preserved. WinGet's portable installation has
+command aliases; use `ipinfo-gui` to open its graphical interface. Windows
+executables remain unsigned, so SmartScreen may require approval.
+
+See the official [WinGet manifest documentation](https://learn.microsoft.com/en-us/windows/package-manager/package/manifest)
+and [Scoop app-manifest documentation](https://github.com/ScoopInstaller/Scoop/wiki/App-Manifests).
 
 #### Source and timeout settings
 
@@ -176,7 +268,8 @@ The optional
 `MACOS_SIGNING_IDENTITY` and `MACOS_NOTARY_PROFILE` environment variables select
 Developer ID signing and a preconfigured `notarytool` keychain profile.
 The `Desktop apps` GitHub Actions workflow builds pull requests and publishes
-version-tagged releases only after all five native packaging jobs pass. Tags
+version-tagged releases only after all five native packaging jobs and package-manager
+manifest validation pass. Tags
 must match the numeric `package.json` version.
 After publishing a release, copy its generated `ipinfo.rb` asset into the tap's
 `Casks/ipinfo.rb`; always use the checksum of the actual published ZIP.
@@ -225,12 +318,35 @@ npm run package:desktop -- linux-x64
 npm run package:desktop -- linux-arm64
 npm run package:desktop -- win32-x64
 npm run package:desktop -- win32-arm64
+npm run package:linux -- linux-x64
+npm run package:linux -- linux-arm64
+npm run package:windows-manifests
 ```
 
 Each target writes a combined archive and checksum under `dist/desktop/`.
 Packaging bundles the CLI as a Node.js single executable, verifies the downloaded
 runtime against its official SHA-256 checksum, and bundles the graphical app
 with Electron. The runtime versions are pinned in `scripts/package-desktop.mjs`.
+After building each Linux archive, `package:linux` packages the same staged
+runtime as `.deb`, `.rpm`, and `.pkg.tar.zst` files. Its build-only nFPM tool is
+pinned to 2.47.0 with committed checksums; no nFPM installation is required.
+Build native packages on Linux AMD64/ARM64 or macOS ARM64. System package files
+are root-owned, desktop libraries are optional, and preferences stay outside
+the package tree. Package metadata uses `Unknown` for the project-wide license
+because this repository does not declare one; third-party license notices remain
+included.
+
+`package:windows-manifests` reads both built Windows ZIPs and writes the Scoop
+manifest and three WinGet manifests into `dist/package-managers/`. Every URL,
+version, architecture, nested executable path, and checksum comes from that
+release's actual artifacts. The manifest-validation job regenerates these from the downloaded
+CI artifacts, rather than reusing local hashes. Extract `IPinfo-winget-manifests.zip`
+from a published release, validate its version directory with
+`winget validate --manifest <directory>`, then submit that directory to
+`microsoft/winget-pkgs` using the official manifest workflow. Submission is a
+separate maintainer action; the release workflow does not submit or publish a
+package-manager registry entry automatically.
+
 Cross-packaging is supported with snapshots and code caches disabled; release
 CI builds and tests on native Linux and Windows runners for both architectures.
 The GUI is sandboxed, loads local assets, and can request only the two fixed
@@ -240,9 +356,16 @@ inside the app. Runtime and interface licenses ship in the archives.
 On a matching native system, run `npm run verify:desktop` to test the packaged CLI,
 saved preferences, and real GUI renderer behavior. Linux CI uses `xvfb-run -a`
 for graphical tests. The release job waits for macOS and all four Linux/Windows
-jobs, verifies their checksums, then uploads all archives with one combined
+jobs, verifies their checksums, then uploads all archives, six native Linux
+packages, and Windows package-manager manifests with one combined
 `SHA256SUMS`. PR/manual builds create Actions artifacts without publishing a
 release; publishing requires a matching version tag.
+Linux jobs test Debian installation directly, RPM installation in a Rocky Linux
+container, and x86_64 Arch installation in the official Arch container. These
+checks run the installed CLI without desktop libraries, verify both command
+links and the sandbox helper's owner/mode, reinstall/remove the package, and
+verify that saved settings survive. Run `scripts/verify-linux-package.sh` only
+in a disposable build host or container; it installs and removes system files.
 
 ### Hosted service
 

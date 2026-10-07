@@ -12,7 +12,9 @@
     "package:macos": "node scripts/package-macos.mjs",
     "package:desktop": "node scripts/package-desktop.mjs",
     "test:desktop": "node --test tests/desktop.test.mjs",
-    "verify:desktop": "node scripts/verify-desktop.mjs"
+    "verify:desktop": "node scripts/verify-desktop.mjs",
+    "package:linux": "node scripts/package-linux.mjs",
+    "package:windows-manifests": "node scripts/package-windows-manifests.mjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
