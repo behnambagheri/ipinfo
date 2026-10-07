@@ -133,14 +133,17 @@
                 </tbody>
               </table>
             </div>
+            <div class="card-actions">
+              <button id="toggle-map" type="button" aria-expanded="false" aria-controls="map-section" class="btn btn-sm">Show on map</button>
+            </div>
           </div>
         </section>
-        <section aria-labelledby="map-title" class="card card-border min-w-0 bg-base-100">
+        <section id="map-section" aria-labelledby="map-title" class="card card-border min-w-0 bg-base-100 hidden">
           <div class="card-body gap-4 p-5 sm:p-7">
             <h2 id="map-title" class="card-title">Map</h2>
             {{ if or .Latitude .Longitude }}
             <p class="text-sm text-base-content/60">Approximate location of <span class="break-all font-mono">{{ .IP }}</span></p>
-            <iframe title="Approximate IP location on OpenStreetMap" class="h-72 w-full rounded-box border border-base-300 sm:h-80" loading="lazy" referrerpolicy="no-referrer" src="https://www.openstreetmap.org/export/embed.html?bbox={{ .BoxLonLeft }}%2C{{ .BoxLatBottom }}%2C{{ .BoxLonRight }}%2C{{ .BoxLatTop }}&amp;layer=mapnik&amp;marker={{ .Latitude }}%2C{{ .Longitude }}"></iframe>
+            <iframe title="Approximate IP location on OpenStreetMap" class="h-72 w-full rounded-box border border-base-300 sm:h-80" loading="lazy" referrerpolicy="no-referrer" data-src="https://www.openstreetmap.org/export/embed.html?bbox={{ .BoxLonLeft }}%2C{{ .BoxLatBottom }}%2C{{ .BoxLonRight }}%2C{{ .BoxLatTop }}&amp;layer=mapnik&amp;marker={{ .Latitude }}%2C{{ .Longitude }}"></iframe>
             <div class="card-actions">
               <a href="https://www.openstreetmap.org/?mlat={{ .Latitude }}&amp;mlon={{ .Longitude }}#map=12/{{ .Latitude }}/{{ .Longitude }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">Open in OpenStreetMap <span aria-hidden="true">↗</span></a>
             </div>

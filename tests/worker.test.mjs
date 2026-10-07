@@ -27,10 +27,14 @@ test('content negotiation returns plain IP to curl and JSON when requested', asy
   assert.equal((await (await handleRequest(request('/', { Accept: 'application/json' }))).json()).ip, '8.8.8.8');
   assert.equal(await (await handleRequest(request('/asn-org'))).text(), 'Google LLC\n');
 });
-test('shared HTML renders safely with active map and hides container-only port feature', async () => {
+test('shared HTML renders safely with an initially hidden map and hides container-only port feature', async () => {
   const result = await handleRequest(request('/', { Accept: 'text/html', 'User-Agent': '</script><script>alert(1)</script>' }));
   const html = await result.text();
   assert.match(html, /IPinfo — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
+  assert.match(html, /id="toggle-map"[^>]*aria-expanded="false"[^>]*>Show on map<\/button>/);
+  assert.match(html, /id="map-section"[^>]*class="[^"]*hidden"/);
+  assert.match(html, /<iframe[^>]*data-src="https:\/\/www\.openstreetmap\.org\/export\/embed/);
+  assert.ok(!/<iframe[^>]*\ssrc=/.test(html));
   assert.match(html, /&lt;\/script&gt;/); assert.ok(!html.includes('</script><script>alert(1)</script>'));
   assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare, IPWHOIS, IP Guide and GeoJS/);
   assert.ok(result.headers.has('Content-Security-Policy'));

@@ -32,6 +32,19 @@
     });
     applyTheme();
 
+    const mapButton = document.getElementById("toggle-map");
+    const mapSection = document.getElementById("map-section");
+    mapButton.addEventListener("click", () => {
+      const showMap = mapButton.getAttribute("aria-expanded") !== "true";
+      const frame = mapSection.querySelector("iframe[data-src]");
+      if (showMap && frame && !frame.hasAttribute("src")) {
+        frame.src = frame.dataset.src;
+      }
+      mapSection.classList.toggle("hidden", !showMap);
+      mapButton.setAttribute("aria-expanded", String(showMap));
+      mapButton.textContent = showMap ? "Hide map" : "Show on map";
+    });
+
     document.querySelectorAll("[data-usage-origin]").forEach((element) => {
       element.textContent = window.location.origin.replaceAll("'", "%27");
     });
