@@ -22,9 +22,9 @@ test('PWA assets are available without visitor metadata, with correct binary byt
     assert.equal(`${bytes.readUInt32BE(16)}x${bytes.readUInt32BE(20)}`, icon.sizes);
     assert.equal((await handleRequest(new Request(origin + icon.src, { method: 'HEAD' }))).status, 200);
   }
-  const favicon = Buffer.from(await (await handleRequest(new Request(`${origin}/favicon.ico`))).arrayBuffer());
-  assert.equal(favicon.readUInt16LE(2), 1);
-  assert.equal(favicon.readUInt16LE(4), 3);
+  const favicon = await handleRequest(new Request(`${origin}/favicon.ico`));
+  assert.equal(favicon.status, 204);
+  assert.equal(await favicon.text(), '');
   const sw = await handleRequest(new Request(`${origin}/sw.js`));
   assert.equal(sw.headers.get('service-worker-allowed'), '/');
   assert.equal(sw.headers.get('cache-control'), 'no-cache');
@@ -32,7 +32,13 @@ test('PWA assets are available without visitor metadata, with correct binary byt
   assert.equal(await (await handleRequest(new Request(`${origin}/sw.js`, { method: 'HEAD' }))).text(), '');
   const html = await (await handleRequest(new Request(origin, { headers: { Accept: 'text/html', 'CF-Connecting-IP': '1.1.1.1' } }))).text();
   assert.match(html, /href="\/manifest.webmanifest"/);
-  assert.match(html, /href="\/favicon.ico"/);
+  assert.match(html, /rel="icon" href="data:,"/);
+  const header = html.split('<header')[1].split('</header>')[0];
+  assert.ok(!header.includes('<img'));
+  assert.ok(!header.includes('data-install-app'));
+  const footer = html.split('<footer')[1].split('</footer>')[0];
+  assert.match(footer, /data-install-app/);
+  assert.ok(!footer.includes('sm:hidden'));
   const policy = sw.headers.get('content-security-policy');
   assert.match(policy, /worker-src 'self'/);
   assert.match(policy, /manifest-src 'self'/);
@@ -79,6 +85,7 @@ test('service worker caches only public assets and removes only its own old cach
   const sw = await serviceWorker();
   assert.ok(sw.writes.includes('/offline.html'));
   assert.ok(sw.writes.includes('/brand/ipinfo.svg'));
+  assert.ok(!sw.writes.includes('/favicon.ico'));
   assert.ok(!sw.writes.some(path => path === '/' || path.startsWith('/json') || path.includes('?')));
   sw.stores.set('ipinfo-assets-old', new Map());
   sw.stores.set('another-app', new Map());

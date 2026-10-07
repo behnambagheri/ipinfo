@@ -15,6 +15,11 @@ var pwaAssets embed.FS
 func withPWAAssets(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name := r.URL.Path
+		if name == "/favicon.ico" {
+			w.Header().Set("Cache-Control", "no-store")
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
 		// Exact file paths only. Never expose filesystem paths or directory listings.
 		if name == "/" || path.Clean(name) != name {
 			next.ServeHTTP(w, r)

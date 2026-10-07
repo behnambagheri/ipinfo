@@ -80,6 +80,7 @@ export async function handleRequest(request, env = {}, context = {}, fetcher = f
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
   if (url.pathname === '/healthz') return json({ status: 'ok', revision: env.BUILD_REVISION }, 200, head);
+  if (url.pathname === '/favicon.ico') return new Response(null, { status: 204, headers: securityHeaders });
   const asset = assets.get(url.pathname);
   if (asset) return new Response(head ? null : Uint8Array.from(atob(asset.body), char => char.charCodeAt(0)), {
     headers: { ...securityHeaders, 'Content-Type': asset.type, 'Cache-Control': 'no-cache', ...(url.pathname === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) },

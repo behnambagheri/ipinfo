@@ -1,6 +1,6 @@
 /* Only public app assets are cached. IP responses and rendered visitor pages stay live. */
 const CACHE_NAME = 'ipinfo-assets-__ASSET_VERSION__';
-const ASSETS = ['/offline.html', '/brand/ipinfo.svg', '/favicon.ico', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/icons/apple-touch-icon.png', '/manifest.webmanifest'];
+const ASSETS = ['/offline.html', '/brand/ipinfo.svg', '/icons/icon-192.png', '/icons/icon-512.png', '/icons/icon-maskable-512.png', '/icons/apple-touch-icon.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(ASSETS)).then(() => self.skipWaiting()));
