@@ -26,34 +26,45 @@ export async function handleRequest(request, env = {}, context = {}) {
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: { ...securityHeaders, 'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS', 'Access-Control-Allow-Headers': 'Accept' } });
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
-  if (url.pathname === '/healthz') return json({ status: 'ok', revision: env.BUILD_REVISION, database_release: env.GEOIP_RELEASE }, 200, head);
+  if (['/healthz', '/health'].includes(url.pathname)) return json({ status: 'ok', revision: env.BUILD_REVISION, database_release: env.GEOIP_RELEASE }, 200, head);
   if (url.pathname === '/database-info') {
-    try { return json(await databaseInfo(env), 200, head); }
+    try { return json(await (env.LOCAL_GEOIP ? env.LOCAL_GEOIP.info() : databaseInfo(env)), 200, head); }
     catch { return json({ error: 'Database dates are unavailable.' }, 503, head); }
   }
   const asset = assets.get(url.pathname);
   if (asset) return new Response(head ? null : Uint8Array.from(atob(asset.body), char => char.charCodeAt(0)), {
     headers: { ...securityHeaders, 'Content-Type': asset.type, 'Cache-Control': 'no-cache', ...(url.pathname === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) },
   });
-  if (url.pathname.startsWith('/port/')) return json({ error: 'Port testing is available only in the self-hosted container.' }, 501, head);
+  if (url.pathname.startsWith('/port/')) {
+    if (context.portCheck) {
+      try { return json(await context.portCheck(url.pathname.slice(6)), 200, head); }
+      catch (error) { return json({ error: error.status ? error.message : 'Port testing is temporarily unavailable.' }, error.status || 502, head); }
+    }
+    return json({ error: 'Port testing is disabled or unavailable in this deployment.' }, 501, head);
+  }
   if (!['/', '/json', '/coordinates'].includes(url.pathname) && !fields.has(url.pathname)) return json({ error: 'Not found' }, 404, head);
   const explicit = Boolean(url.searchParams.get('ip')?.trim());
+  if (explicit && context.disableCustomIP) return json({ error: 'Custom IP lookups are disabled.' }, 400, head);
   // Cloudflare overwrites CF-Connecting-IP at the edge. Never trust forwarded headers.
-  const ip = normalizeIP(explicit ? url.searchParams.get('ip').trim() : request.headers.get('CF-Connecting-IP'));
+  const ip = normalizeIP(explicit ? url.searchParams.get('ip').trim() : (context.clientIP ?? request.headers.get('CF-Connecting-IP')));
   if (!ip) return json({ error: explicit ? 'Provide a valid IPv4 or IPv6 address.' : 'Client IP is unavailable.' }, explicit ? 400 : 503, head);
   let data;
-  try { data = explicit ? await lookupGeoIP(ip, env, context) : visitorData(ip, request); }
+  try {
+    data = env.LOCAL_GEOIP ? await env.LOCAL_GEOIP.lookup(ip) : explicit ? await lookupGeoIP(ip, env, context) : visitorData(ip, request);
+    data = { ...data, user_agent: request.headers.get('user-agent') || '' };
+    if (context.hostname) data.hostname = await context.hostname(ip);
+  }
   catch {
     const error = 'IP lookup is temporarily unavailable. Please try again later.';
     if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html') && !request.headers.get('accept')?.includes('application/json')) {
-      const view = templateData({ ip, ip_decimal: decimalIP(ip), error }, request, explicit);
+      const view = templateData({ ip, ip_decimal: decimalIP(ip), error }, request, explicit, context);
       Object.assign(view, { LookupError: error, LookupRetryURL: url.href });
       return response(render(view), 502, 'text/html; charset=utf-8', head);
     }
     return json({ error }, 502, head);
   }
   if (url.pathname === '/json' || (url.pathname === '/' && request.headers.get('accept')?.includes('application/json'))) return json(data, 200, head);
-  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) return response(render(templateData(data, request, explicit)), 200, 'text/html; charset=utf-8', head);
+  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) return response(render(templateData(data, request, explicit, context)), 200, 'text/html; charset=utf-8', head);
   if (url.pathname === '/coordinates') return Number.isFinite(data.latitude) && Number.isFinite(data.longitude) ? response(`${data.latitude},${data.longitude}\n`, 200, undefined, head) : response('Location data is unavailable.\n', 404, undefined, head);
   const value = data[fields.get(url.pathname) || 'ip'];
   return value !== undefined && value !== null ? response(`${value}\n`, 200, undefined, head) : response('Data is unavailable for this address.\n', 404, undefined, head);

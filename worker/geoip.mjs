@@ -59,10 +59,19 @@ export async function lookupGeoIP(ip, env, context = {}) {
   const city = await db.City.get(ip);
   const asn = await db.ASN.get(ip);
   const countryRecord = city?.country ? city : await db.Country.get(ip);
+  const data = geoIPRecord(ip, city, asn, countryRecord, env.GEOIP_RELEASE);
+  if (cache && context.waitUntil) context.waitUntil(cache.put(key, new Response(JSON.stringify(data), {
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
+  })));
+  return data;
+}
+
+// Shared response schema for local files and Worker Static Assets.
+export function geoIPRecord(ip, city, asn, countryRecord, release) {
   const country = countryRecord?.country;
   const region = city?.subdivisions?.at(-1);
   const data = {
-    ip, ip_decimal: decimalIP(ip), source: 'GeoLite2', database_release: env.GEOIP_RELEASE,
+    ip, ip_decimal: decimalIP(ip), source: 'GeoLite2', database_release: release,
     country: country?.names?.en, country_iso: country?.iso_code, country_eu: country?.is_in_european_union ?? false,
     city: city?.city?.names?.en, region_name: region?.names?.en, region_code: region?.iso_code,
     postal_code: city?.postal?.code, timezone: city?.location?.time_zone,
@@ -70,8 +79,5 @@ export async function lookupGeoIP(ip, env, context = {}) {
     asn: asn?.autonomous_system_number ? `AS${asn.autonomous_system_number}` : undefined,
     asn_org: asn?.autonomous_system_organization,
   };
-  if (cache && context.waitUntil) context.waitUntil(cache.put(key, new Response(JSON.stringify(data), {
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=86400' },
-  })));
   return data;
 }

@@ -47,22 +47,22 @@ spec:
             - name: http
               containerPort: 8080
           env:
-            - name: ECHOIP_LISTEN
+            - name: IPINFO_LISTEN
               value: ":8080"
-            - name: ECHOIP_TRUSTED_HEADERS
+            - name: IPINFO_TRUSTED_HEADERS
               value: {{ .Values.trustedHeaders | quote }}
-            - name: ECHOIP_CACHE_SIZE
+            - name: IPINFO_CACHE_SIZE
               value: {{ .Values.cacheSize | quote }}
-            - name: ECHOIP_PORT_LOOKUP
+            - name: IPINFO_PORT_LOOKUP
               value: {{ .Values.portLookup | quote }}
-            - name: ECHOIP_REVERSE_LOOKUP
+            - name: IPINFO_REVERSE_LOOKUP
               value: {{ .Values.reverseLookup | quote }}
-            - name: ECHOIP_DATABASE_UPDATE_CONFIG
+            - name: IPINFO_DATABASE_UPDATE_CONFIG
               value: /etc/ipinfo/updates.json
-            - name: ECHOIP_DATABASE_UPDATE_DIR
+            - name: IPINFO_DATABASE_UPDATE_DIR
               value: /var/lib/ipinfo/geolite2
             {{- if $updates.proxySecret.name }}
-            - name: ECHOIP_DATABASE_UPDATE_PROXY
+            - name: IPINFO_DATABASE_UPDATE_PROXY
               valueFrom:
                 secretKeyRef:
                   name: {{ $updates.proxySecret.name | quote }}
@@ -76,17 +76,17 @@ spec:
               mountPath: /var/lib/ipinfo/geolite2
           startupProbe:
             httpGet:
-              path: /ip
+              path: /healthz
               port: http
             failureThreshold: 30
             periodSeconds: 2
           readinessProbe:
             httpGet:
-              path: /ip
+              path: /healthz
               port: http
           livenessProbe:
             httpGet:
-              path: /ip
+              path: /healthz
               port: http
           resources:
             {{- toYaml .Values.resources | nindent 12 }}

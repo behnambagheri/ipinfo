@@ -21,12 +21,12 @@ wrap between hextets; copying still includes the complete address.
 
 | | Cloudflare Worker | Container / Kubernetes |
 | --- | --- | --- |
-| Runtime | Cloudflare edge JavaScript | [echoip](https://github.com/mpolden/echoip) |
+| Runtime | Shared IPinfo JavaScript handler on Cloudflare | Shared IPinfo JavaScript handler on Node.js 24 |
 | Visitor IP | Cloudflare's `CF-Connecting-IP` | Connection peer; optionally trusted proxy headers |
 | Visitor geolocation | Cloudflare request metadata | Bundled GeoLite2 databases |
 | Explicit `?ip=` lookup | Owned GeoLite2 databases packaged as Worker Static Assets; results cached per database release for 24 hours | Local GeoLite2 lookup |
 | Reverse DNS | Unavailable | Enabled by default |
-| TCP port checks | Unavailable (HTTP 501) | Opt-in via `ECHOIP_PORT_LOOKUP=true` |
+| TCP port checks | Unavailable (HTTP 501) | Opt-in via `IPINFO_PORT_LOOKUP=true` |
 
 The hosted Worker serves visitor metadata without external lookup requests.
 Explicit public-IP lookups read our own GeoLite2 ASN, City, and Country data
@@ -35,24 +35,42 @@ geolocation API. Reserved/private addresses return an address-only result;
 unknown public addresses retain their IP with unavailable fields omitted.
 Database failures return HTTP 502 JSON; browser requests retain the interface
 with an error message and retry link. Failed lookups are not cached.
-The self-hosted container reads the same database types from its image.
+The self-hosted container reads the same database types from its image. Both
+deployments use our own shared handler, renderer, API schema, and public assets.
+The container has no echoip source download, Go build, binary, or runtime dependency.
 IP geolocation is approximate and can reflect a VPN or provider's location.
 
 ## API
 
+The Worker and container expose the same lookup routes. Append `?ip=8.8.8.8`
+or an IPv6 address for a custom lookup; otherwise the service reports the visitor.
+
+| Endpoint | Result |
+| --- | --- |
+| `/`, `/ip` | Plain IP (`/` also provides HTML or JSON through content negotiation) |
+| `/json` | Complete available information |
+| `/ip-decimal` | Decimal IP; IPv6 uses an exact decimal string |
+| `/country`, `/country-iso`, `/country-eu` | Country name, ISO code, EU membership |
+| `/city`, `/region-name`, `/region-code`, `/postal-code` | Location fields |
+| `/asn`, `/asn-org` | ASN and network organization |
+| `/timezone` | Time zone |
+| `/coordinates`, `/latitude`, `/longitude` | Geographic coordinates |
+| `/user-agent` | Raw request User-Agent |
+| `/database-info` | Actual database build dates and update status |
+| `/healthz`, `/health` | Service health, build revision, and active database release |
+| `/port/<number>` | Container TCP check when enabled; otherwise HTTP 501 |
+
 ```sh
-curl https://ip.bea.sh              # Plain IP for CLI clients
-curl https://ip.bea.sh/json         # Full JSON
-curl -H 'Accept: application/json' https://ip.bea.sh
-curl 'https://ip.bea.sh/json?ip=8.8.8.8'
-curl 'https://ip.bea.sh/json?ip=2606:4700:4700::1111'
-curl https://ip.bea.sh/country
-curl https://ip.bea.sh/country-iso
-curl https://ip.bea.sh/city
-curl https://ip.bea.sh/coordinates
-curl https://ip.bea.sh/asn
-curl https://ip.bea.sh/asn-org
+curl https://ip.bea.sh/json
+curl 'https://ip.behnam.pro/json?ip=8.8.8.8'
+curl 'https://ip.behnam.pro/json?ip=2606:4700:4700::1111'
+curl 'https://ip.behnam.pro/region-name?ip=81.2.69.160'
 ```
+
+Lookups support GET and HEAD; OPTIONS returns the CORS policy. Missing fields
+return HTTP 404. JSON omits unavailable fields. `user_agent` is consistently the
+raw string on both deployments. Reverse DNS adds `hostname` on the container
+when enabled and available, with a one-second bound on waiting for DNS.
 
 A browser requesting `text/html` gets the interface at `/`. API clients get
 plain text or JSON, depending on the endpoint and `Accept` header. The Worker
@@ -74,7 +92,7 @@ The interface includes the original network-locator logo in
 icon, regular/maskable PWA icons, install dialog, and offline screen. The header
 uses text branding. `npm run build` generates the
 raster icons and an offline page, then packages the same public assets into
-the Worker and the container's echoip binary. To change the logo, edit the SVG
+the Worker and the container service. To change the logo, edit the SVG
 and rebuild; no external image service is used at runtime.
 
 ### Installable app
@@ -253,11 +271,11 @@ have a single writer; the chart rejects a shared claim with multiple replicas.
 
 | Environment variable | Default | Purpose |
 | --- | --- | --- |
-| `ECHOIP_DATABASE_UPDATE_ENABLED` | `true` | Enable or disable automatic checks |
-| `ECHOIP_DATABASE_UPDATE_INTERVAL` | `168h` | Go duration; `24h` for daily checks |
-| `ECHOIP_DATABASE_UPDATE_PROXY` | empty | Optional proxy URL for update downloads |
-| `ECHOIP_DATABASE_UPDATE_CONFIG` | empty | Optional JSON configuration file |
-| `ECHOIP_DATABASE_UPDATE_DIR` | `/var/lib/ipinfo/geolite2` | Writable generation/state directory |
+| `IPINFO_DATABASE_UPDATE_ENABLED` | `true` | Enable or disable automatic checks |
+| `IPINFO_DATABASE_UPDATE_INTERVAL` | `168h` | Duration using `ms`, `s`, `m`, `h`, or `d`; `24h` for daily checks |
+| `IPINFO_DATABASE_UPDATE_PROXY` | empty | Optional proxy URL for update downloads |
+| `IPINFO_DATABASE_UPDATE_CONFIG` | empty | Optional JSON configuration file |
+| `IPINFO_DATABASE_UPDATE_DIR` | `/var/lib/ipinfo/geolite2` | Writable generation/state directory |
 
 Explicit environment variables override the JSON file. Environment changes
 require a container restart; the mounted JSON configuration reloads dynamically.
@@ -270,8 +288,8 @@ docker run --rm --read-only --cap-drop ALL \
   --security-opt no-new-privileges \
   -p 127.0.0.1:8080:8080 \
   -v ipinfo-geolite2:/var/lib/ipinfo/geolite2 \
-  -e ECHOIP_DATABASE_UPDATE_INTERVAL=168h \
-  -e ECHOIP_DATABASE_UPDATE_PROXY=http://proxy.example:3128 \
+  -e IPINFO_DATABASE_UPDATE_INTERVAL=168h \
+  -e IPINFO_DATABASE_UPDATE_PROXY=http://proxy.example:3128 \
   ghcr.io/behnambagheri/ipinfo:latest
 ```
 
@@ -296,10 +314,15 @@ docker build --pull -t ipinfo:local .
 bash scripts/smoke-container.sh ipinfo:local
 ```
 
-The image runs as UID/GID `10001` on port `8080`. It builds echoip from a pinned,
-SHA-256-verified source archive for each target architecture. Its public
-upstream base images come from Docker Hub, and npm dependencies come from
-`registry.npmjs.org`.
+The image runs our own bundled Node.js service as UID/GID `10001` on port `8080`.
+The Worker and container bundles are built from the same handler and templates.
+A generic MIT-licensed `mmdb-lib` reader handles local MaxMind files; no echoip
+code or binary is needed at build or runtime. Base images come from Docker Hub,
+and npm dependencies come from `registry.npmjs.org`. curl provides verified
+HTTPS database downloads and HTTP/HTTPS/SOCKS proxy transports at runtime.
+Image builds run the shared API, database, updater, and proxy tests.
+Pass `--build-arg BUILD_REVISION=$(git rev-parse HEAD)` when building locally to
+populate `/healthz`; CI always supplies the deployed commit.
 
 GeoLite2 ASN, City, and Country databases come from one resolved release of
 [P3TERX/GeoLite.mmdb](https://github.com/P3TERX/GeoLite.mmdb).
@@ -312,25 +335,29 @@ attribution and database update/removal requirements.
 
 | Environment variable | Default |
 | --- | --- |
-| `ECHOIP_LISTEN` | `:8080` |
-| `ECHOIP_CACHE_SIZE` | `0` |
-| `ECHOIP_TRUSTED_HEADERS` | Empty (no trusted headers) |
-| `ECHOIP_PORT_LOOKUP` | `false` |
-| `ECHOIP_REVERSE_LOOKUP` | `true` |
-| `ECHOIP_DISABLE_CUSTOM_IP` | `false` |
-| `ECHOIP_PROFILING` | `false` |
-| `ECHOIP_SPONSOR` | `false` |
-| `ECHOIP_TEMPLATE_DIR` | `/data/html` |
-| `ECHOIP_ASN_DATABASE` | `/data/geolite2/GeoLite2-ASN.mmdb` |
-| `ECHOIP_CITY_DATABASE` | `/data/geolite2/GeoLite2-City.mmdb` |
-| `ECHOIP_COUNTRY_DATABASE` | `/data/geolite2/GeoLite2-Country.mmdb` |
+| `IPINFO_LISTEN` | `:8080` |
+| `IPINFO_CACHE_SIZE` | `0` |
+| `IPINFO_TRUSTED_HEADERS` | Empty (no trusted headers) |
+| `IPINFO_PORT_LOOKUP` | `false` |
+| `IPINFO_REVERSE_LOOKUP` | `true` |
+| `IPINFO_DISABLE_CUSTOM_IP` | `false` |
+| `IPINFO_ASN_DATABASE` | `/data/geolite2/GeoLite2-ASN.mmdb` |
+| `IPINFO_CITY_DATABASE` | `/data/geolite2/GeoLite2-City.mmdb` |
+| `IPINFO_COUNTRY_DATABASE` | `/data/geolite2/GeoLite2-Country.mmdb` |
 
 Boolean options accept `true`, `false`, `1`, or `0`. An explicitly empty
-database path disables that database. Explicit command arguments override
-all environment configuration.
+database path disables that database. `IPINFO_CACHE_SIZE` bounds an optional
+in-memory geolocation cache; user agents and reverse DNS are not cached.
+
+Existing `ECHOIP_*` settings for the listed options remain migration aliases.
+An explicit `IPINFO_*` value takes precedence. The chart now sets `IPINFO_*`.
+The image entrypoint is `node /app/server.mjs`; old echoip CLI arguments,
+profiling routes, sponsor options, and external Go template directories are
+no longer supported. The existing shared HTML is compiled into both bundles.
+Historical template attribution remains in `THIRD_PARTY_NOTICES.md`.
 
 Only configure trusted headers behind a proxy you control that overwrites
-them, for example `ECHOIP_TRUSTED_HEADERS=CF-Connecting-IP` behind a restricted
+them, for example `IPINFO_TRUSTED_HEADERS=CF-Connecting-IP` behind a restricted
 Cloudflare origin. Otherwise use the connection peer. Enabling port checks
 allows probing the requesting address from the container's network.
 
@@ -381,8 +408,10 @@ pull it; private pulls require credentials via `imagePullSecrets`.
 
 ## Credits
 
-The container uses [echoip](https://github.com/mpolden/echoip) (BSD 3-Clause),
-GeoLite2/MaxMind, and the database mirror. The Worker uses Cloudflare metadata
+Both deployments run the shared IPinfo service maintained in this repository.
+The container uses mmdb-lib (MIT) for local reads. Historical template
+attribution to echoip (BSD 3-Clause) is retained in THIRD_PARTY_NOTICES.md.
+Both use GeoLite2/MaxMind and the database mirror. The Worker uses Cloudflare metadata
 and owned GeoLite2 databases for explicit public-IP lookup.
 GeoLite2 data is created by [MaxMind](https://www.maxmind.com). Both interfaces use daisyUI,
 Tailwind CSS, and [OpenStreetMap](https://www.openstreetmap.org/copyright).

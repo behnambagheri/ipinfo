@@ -6,5 +6,4 @@ dist
 .env*
 .dev.vars*
 charts
-worker
 README.md

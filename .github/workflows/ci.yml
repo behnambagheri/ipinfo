@@ -38,7 +38,7 @@ jobs:
             dist/geolite2-assets/
           retention-days: 1
       - name: Check shell syntax
-        run: sh -n scripts/entrypoint.sh scripts/download-geolite2.sh
+        run: sh -n scripts/download-geolite2.sh
       - uses: azure/setup-helm@v4.3.0
         with:
           version: v3.19.0
@@ -55,6 +55,7 @@ jobs:
           context: .
           load: true
           tags: ipinfo:test
+          build-args: BUILD_REVISION=${{ github.sha }}
           no-cache-filters: geolite2
           secrets: |
             github_token=${{ github.token }}
@@ -92,6 +93,7 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: ${{ steps.meta.outputs.tags }}
+          build-args: BUILD_REVISION=${{ github.sha }}
           labels: ${{ steps.meta.outputs.labels }}
           no-cache-filters: geolite2
           secrets: |

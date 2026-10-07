@@ -1,7 +1,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { build } from 'esbuild';
 
-// Compile the small Go-template subset used by echoip into an ES module.
+// Compile our shared HTML template syntax into an ES module.
 // Both deployments share the exact same HTML, interaction scripts, and CSS.
 async function inline(name) {
   let text = await readFile(`html/${name}`, 'utf8');
@@ -19,9 +19,9 @@ function condition(text) {
   if (parts[0] === 'or') return `(${parts.slice(1).map(field).join(' || ')})`;
   return field(text);
 }
-// The container resolves addresses locally; this alert handles Worker database lookup failures.
+// Both runtimes retain the page and show a retry action on database failures.
 const lookupError = await readFile('worker/lookup-error.html', 'utf8');
-const source = (await inline('index.html')).replaceAll('echoip and GeoLite2', 'Cloudflare and GeoLite2').replaceAll("Port checks test the connection's IP address.", 'Custom lookups use GeoLite2 databases.').replace('<section aria-labelledby="ip-title"', `${lookupError}<section aria-labelledby="ip-title"`);
+const source = (await inline('index.html')).replace('<section aria-labelledby="ip-title"', `${lookupError}<section aria-labelledby="ip-title"`);
 const root = [];
 const stack = [{ children: root }];
 let cursor = 0;
@@ -52,4 +52,5 @@ function expression(nodes) {
 await mkdir('dist', { recursive: true });
 await writeFile('worker/render.generated.mjs', `import { escapeHTML, scriptString } from './render.mjs';\nexport const render = data => ${expression(root)};\n`);
 await build({ entryPoints: ['worker/index.mjs'], outfile: 'dist/worker.mjs', bundle: true, format: 'esm', platform: 'browser', target: 'es2022', minify: true });
-console.log('Built dist/worker.mjs from the shared echoip templates.');
+await build({ entryPoints: ['server/index.mjs'], outfile: 'dist/server.mjs', bundle: true, format: 'esm', platform: 'node', target: 'node24', banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' } });
+console.log('Built Worker and container service from the shared IPinfo handler and templates.');

@@ -1,15 +1,17 @@
 # Third-party notices
 
-The container builds and distributes echoip from the revision pinned in the
-Dockerfile. Its BSD 3-Clause license is reproduced below. UI and build dependencies
-retain their license metadata in npm packages. The Worker also distributes
-GeoLite2 files as internal Static Assets; its build uses mmdb-lib under MIT
-for database validation. Synthetic MaxMind-DB test fixtures and their MIT
-license are in tests/fixtures/. GeoLite2 data is created by
-MaxMind and is subject to the GeoLite End User License Agreement
-(https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.
+The Worker and container run this project's shared IPinfo service. The container
+uses mmdb-lib (MIT) to read local MaxMind databases; its license is included below.
+UI and build dependencies retain their license metadata in npm packages.
+Synthetic MaxMind-DB test fixtures and their MIT license are in tests/fixtures/.
+GeoLite2 data is created by MaxMind and is subject to the GeoLite End User License
+Agreement (https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.
 See the README for attribution and update requirements.
 OpenStreetMap embeds include their own map attribution.
+
+The original page templates were adapted from echoip. Its license is retained
+for that historical source attribution; echoip is not downloaded, built, or
+included as a runtime dependency.
 
 ## echoip
 
@@ -38,3 +40,26 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
 ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+## mmdb-lib
+
+The MIT License (MIT)
+
+Copyright (c) 2026 Dmitry Shirokov
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+the Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.

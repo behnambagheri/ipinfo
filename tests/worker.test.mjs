@@ -37,7 +37,7 @@ test('shared HTML renders safely with an initially hidden map and hides containe
   assert.match(html, /<iframe[^>]*data-src="https:\/\/www\.openstreetmap\.org\/export\/embed/);
   assert.ok(!/<iframe[^>]*\ssrc=/.test(html));
   assert.match(html, /&lt;\/script&gt;/); assert.ok(!html.includes('</script><script>alert(1)</script>'));
-  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Cloudflare and GeoLite2/);
+  assert.ok(!html.includes('{{')); assert.ok(!html.includes('value="port"')); assert.match(html, /Powered by GeoLite2/);
   assert.ok(result.headers.has('Content-Security-Policy'));
 });
 test('missing geolocation produces a useful map placeholder', async () => {

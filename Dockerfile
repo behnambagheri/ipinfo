@@ -1,53 +1,35 @@
 # syntax=docker/dockerfile:1
-FROM --platform=$BUILDPLATFORM node:24-alpine AS ui
+FROM --platform=$BUILDPLATFORM node:24-alpine AS application
 WORKDIR /build
+RUN apk add --no-cache curl
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY html/ ./html/
-COPY ui/styles.css ./ui/styles.css
+COPY ui/ ./ui/
 COPY public/ ./public/
-COPY scripts/embed-styles.mjs scripts/build-assets.mjs ./scripts/
-RUN npm run build:css && node scripts/build-assets.mjs
-
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS echoip
-ARG TARGETOS
-ARG TARGETARCH
-ARG ECHOIP_REV=27646b3c4c39041baf8734063e87e71d46f53362
-ARG ECHOIP_SHA256=7f40c90364a8be735952aa7380cb92f36a15f732cb64c9fc29bea3bd4494c3e7
-RUN apk add --no-cache curl patch build-base
-WORKDIR /src
-RUN curl -fsSL --retry 3 "https://codeload.github.com/mpolden/echoip/tar.gz/${ECHOIP_REV}" -o /tmp/echoip.tar.gz \
-    && echo "${ECHOIP_SHA256}  /tmp/echoip.tar.gz" | sha256sum -c - \
-    && tar -xzf /tmp/echoip.tar.gz --strip-components=1
-COPY --from=ui /build/dist/public/ ./http/pwa-assets/
-COPY scripts/echoip-pwa.go ./http/pwa.go
-COPY scripts/echoip-database.go ./iputil/geo/database.go
-COPY scripts/echoip-update.go ./iputil/geo/update.go
-COPY scripts/echoip-update_test.go ./iputil/geo/update_test.go
-COPY tests/fixtures/ ./iputil/geo/update-fixtures/
-COPY scripts/echoip-lookup.go ./http/lookup.go
-COPY scripts/echoip-lookup_test.go ./http/lookup_test.go
-COPY scripts/echoip-pwa_test.go ./http/pwa_test.go
-COPY scripts/echoip-pwa.patch /tmp/echoip-pwa.patch
-COPY scripts/echoip-main.patch /tmp/echoip-main.patch
-RUN patch -p1 < /tmp/echoip-pwa.patch && patch -p1 < /tmp/echoip-main.patch && go test -race ./http ./iputil/geo
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -trimpath -ldflags='-s -w' -o /out/echoip ./cmd/echoip
+COPY worker/ ./worker/
+COPY server/ ./server/
+COPY scripts/ ./scripts/
+COPY tests/ ./tests/
+RUN npm run build && npm test
 
 FROM --platform=$BUILDPLATFORM alpine:3.23 AS geolite2
 RUN apk add --no-cache ca-certificates curl jq
 COPY scripts/download-geolite2.sh /usr/local/bin/download-geolite2
 RUN --mount=type=secret,id=github_token,env=GITHUB_TOKEN sh /usr/local/bin/download-geolite2 /data/geolite2
 
-FROM alpine:3.23
-RUN apk add --no-cache ca-certificates
-RUN mkdir -p /var/lib/ipinfo/geolite2 && chown -R 10001:10001 /var/lib/ipinfo
-COPY --from=echoip /out/echoip /opt/echoip/echoip
+FROM node:24-alpine
+ARG BUILD_REVISION=development
+ENV NODE_ENV=production BUILD_REVISION=$BUILD_REVISION
+RUN apk add --no-cache ca-certificates curl \
+    && mkdir -p /app /var/lib/ipinfo/geolite2 \
+    && chown -R 10001:10001 /var/lib/ipinfo
+COPY --from=application /build/dist/server.mjs /app/server.mjs
 COPY --from=geolite2 /data/geolite2/ /data/geolite2/
-COPY --from=ui /build/html/ /data/html/
-COPY scripts/entrypoint.sh /usr/local/bin/ipinfo-entrypoint
 COPY THIRD_PARTY_NOTICES.md /usr/share/doc/ipinfo/THIRD_PARTY_NOTICES.md
 USER 10001:10001
+WORKDIR /app
 VOLUME ["/var/lib/ipinfo/geolite2"]
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/ip || exit 1
-ENTRYPOINT ["/bin/sh", "/usr/local/bin/ipinfo-entrypoint"]
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s CMD wget -q -O /dev/null http://127.0.0.1:8080/healthz || exit 1
+ENTRYPOINT ["node", "/app/server.mjs"]
