@@ -2,6 +2,7 @@ import { mkdir, open, readFile, readdir, rename, unlink } from 'node:fs/promises
 import { join } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { containerSite, reportPath, validateReport } from '../worker/statistics.mjs';
+import { statisticsFetch } from './statistics-transport.mjs';
 
 // Each process owns one file. Atomic rename works on the cluster's shared NFS volume;
 // replicas never edit each other's files and can safely resend the same cumulative counts.
@@ -22,11 +23,17 @@ export function statisticsConfig(env = process.env) {
   if (url.protocol !== 'https:' || url.hostname !== 'ip.bea.sh' || url.pathname !== reportPath || url.port || url.username || url.password || url.search || url.hash) throw new Error('Invalid statistics endpoint');
   const token = env.IPINFO_STATS_REPORT_TOKEN || '';
   if (!/^[A-Za-z0-9_-]{32,256}$/.test(token)) throw new Error('Invalid statistics reporting token');
-  return { endpoint: url.href, token, directory: env.IPINFO_STATS_DIR || '/var/lib/ipinfo/statistics' };
+  const proxy = env.IPINFO_STATS_PROXY || '';
+  if (typeof proxy !== 'string' || /[\r\n\0]/.test(proxy)) throw new Error('Invalid statistics proxy');
+  if (proxy) {
+    const proxyURL = new URL(proxy);
+    if (!['http:', 'https:', 'socks5:', 'socks5h:'].includes(proxyURL.protocol) || !proxyURL.hostname || proxyURL.hash || proxyURL.search || (proxyURL.pathname && proxyURL.pathname !== '/')) throw new Error('Invalid statistics proxy');
+  }
+  return { endpoint: url.href, token, proxy, directory: env.IPINFO_STATS_DIR || '/var/lib/ipinfo/statistics' };
 }
 export class ContainerStatistics {
   site = containerSite;
-  constructor(config, { fetcher = fetch, intervalMs = 60000, now = () => new Date() } = {}) {
+  constructor(config, { fetcher = config.proxy ? (url, options) => statisticsFetch(url, options, config.proxy) : fetch, intervalMs = 60000, now = () => new Date() } = {}) {
     this.config = config; this.fetcher = fetcher; this.intervalMs = intervalMs; this.now = now;
     this.source = randomUUID(); this.rows = new Map(); this.sent = new Map(); this.persisting = Promise.resolve();
     this.cached = null; this.syncing = null; this.lastError = null;

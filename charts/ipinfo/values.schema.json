@@ -147,6 +147,22 @@
               "pattern": "^[1-9][0-9]*(Mi|Gi)$"
             }
           }
+        },
+        "proxy": {
+          "type": "string",
+          "pattern": "^$|^(https?|socks5h?)://[^\\s]+$"
+        },
+        "proxySecret": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
         }
       }
     }

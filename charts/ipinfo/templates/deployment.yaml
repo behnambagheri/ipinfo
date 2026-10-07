@@ -71,6 +71,15 @@ spec:
               value: {{ $stats.endpoint | quote }}
             - name: IPINFO_STATS_DIR
               value: /var/lib/ipinfo/statistics
+            - name: IPINFO_STATS_PROXY
+              {{- if ($stats.proxySecret | default dict).name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $stats.proxySecret.name | quote }}
+                  key: {{ $stats.proxySecret.key | default "proxy" | quote }}
+              {{- else }}
+              value: {{ $stats.proxy | default "" | quote }}
+              {{- end }}
             - name: IPINFO_STATS_REPORT_TOKEN
               valueFrom:
                 secretKeyRef:

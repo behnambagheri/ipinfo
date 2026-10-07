@@ -212,6 +212,18 @@ The endpoint is deliberately restricted to the configured HTTPS collector;
 credentials cannot follow redirects to another host. Omit the endpoint to disable
 container statistics. Worker statistics are enabled by the D1 binding.
 
+Set `IPINFO_STATS_PROXY` (Helm: `statistics.proxy`) to an HTTP, HTTPS, SOCKS5,
+or SOCKS5h proxy when the container cannot reach Cloudflare directly. This affects
+only statistics reporting and refreshes. For credentials, use
+`statistics.proxySecret.name` and `.key`; a referenced Secret overrides the
+plain proxy value. TLS verification remains enabled. The transport rejects
+redirects, bounds request time and response size, and passes credentials through
+curl's stdin configuration rather than process arguments or logs.
+
+The `bea` deployment uses its existing egress proxy, `http://172.25.50.122:7890`,
+because direct connections from its pods to `ip.bea.sh:443` timed out. Statistics
+use a shared NFS claim and two replicas, with a pinned container image.
+
 ## Local development
 
 The interface includes the original network-locator logo in
