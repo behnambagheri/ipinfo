@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" href="/brand/ipinfo.svg" type="image/svg+xml" />
+    <title>Private usage — IPinfo</title>
+    {{ template "theme.html" . }}
+    {{ template "styles.html" . }}
+  </head>
+  <body class="min-h-screen bg-base-200 text-base-content">
+    <main class="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
+      <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <a class="link link-hover text-sm text-base-content/60" href="/">← IPinfo home</a>
+          <h1 class="mt-3 text-3xl font-semibold">Private source-IP usage</h1>
+          <p class="mt-2 text-sm text-base-content/70">Requests by source address · visible only to authorized accounts</p>
+        </div>
+        <a class="btn btn-sm" href="/cdn-cgi/access/logout">Sign out</a>
+      </header>
+      <section class="card card-border bg-base-100" aria-labelledby="filters-title">
+        <div class="card-body p-5 sm:p-7">
+          <h2 class="card-title" id="filters-title">Filter requests</h2>
+          <form id="visitor-filters" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label class="space-y-2 text-sm"><span class="block">Site</span><select class="select w-full" id="visitor-site" name="site"><option value="ip.bea.sh">ip.bea.sh</option><option value="ip.behnam.pro">ip.behnam.pro</option></select></label>
+            <label class="space-y-2 text-sm"><span class="block">From reporting day (UTC)</span><input class="input w-full" id="visitor-from" name="from" type="date" required /></label>
+            <label class="space-y-2 text-sm"><span class="block">Through reporting day (UTC)</span><input class="input w-full" id="visitor-to" name="to" type="date" required /></label>
+            <label class="space-y-2 text-sm"><span class="block">Search IP or location</span><input class="input w-full" name="q" id="visitor-search" type="search" maxlength="256" placeholder="IP, country, city, provider" /></label>
+            <div class="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4"><button class="btn" type="submit">Apply filters</button><button class="btn" type="button" id="visitor-refresh">Refresh</button></div>
+          </form>
+          <p class="mt-2 text-xs text-base-content/60" id="visitor-window"></p>
+        </div>
+      </section>
+      <p id="visitor-status" role="status" aria-live="polite" class="text-sm text-base-content/70">Loading private statistics…</p>
+      <section class="card card-border bg-base-100" aria-labelledby="visitors-title">
+        <div class="card-body min-w-0 p-5 sm:p-7">
+          <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"><h2 id="visitors-title" class="card-title">Source IPs</h2><p id="visitor-summary" class="text-sm text-base-content/70"></p></div>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <caption class="sr-only">Source addresses and request counts for the selected site and reporting days, sorted by total requests</caption>
+              <thead><tr><th scope="col">Source IP</th><th scope="col">Country</th><th scope="col">City</th><th scope="col">Provider</th><th scope="col">Requests</th><th scope="col">Web</th><th scope="col">API</th><th scope="col">Errors</th><th scope="col">Last activity</th></tr></thead>
+              <tbody id="visitor-rows"></tbody>
+            </table>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-3"><button class="btn btn-sm" id="visitor-previous" type="button" disabled>Previous</button><span class="text-sm" id="visitor-page"></span><button class="btn btn-sm" id="visitor-next" type="button" disabled>Next</button></div>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100" aria-labelledby="visitor-notes-title">
+        <div class="card-body p-5 sm:p-7">
+          <h2 class="card-title" id="visitor-notes-title">About these counts</h2>
+          <p class="text-sm leading-relaxed text-base-content/70">Each diagnostic GET counts once. Web means an HTML response; API means JSON or plain text. Requests include scripts and bots. Several people may share a source IP through a router or VPN.</p>
+          <p class="text-sm leading-relaxed text-base-content/70">Each site is shown separately. Tracking starts when enabled. Source-IP records are retained for 30 UTC reporting days, including today. Activity timestamps are displayed in your time zone.</p>
+          <p class="text-sm leading-relaxed text-base-content/70">Country and city are approximate IP geolocation. Provider is the network's ASN organization, which may identify a VPN or hosting company. Missing location data is shown as “Unknown.”</p>
+        </div>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const form = document.getElementById('visitor-filters');
+        const status = document.getElementById('visitor-status');
+        const rows = document.getElementById('visitor-rows');
+        const previous = document.getElementById('visitor-previous');
+        const next = document.getElementById('visitor-next');
+        const number = new Intl.NumberFormat();
+        const date = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        const today = new Date(), first = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate() - 29));
+        const from = document.getElementById('visitor-from'), to = document.getElementById('visitor-to');
+        from.value = from.min = to.min = first.toISOString().slice(0, 10);
+        to.value = from.max = to.max = today.toISOString().slice(0, 10);
+        document.getElementById('visitor-window').textContent = 'UTC day filters · activity shown in ' + date.resolvedOptions().timeZone;
+        let page = 1, activeFilters = new URLSearchParams(new FormData(form)), sequence = 0;
+        function empty(message) {
+          const row = document.createElement('tr'), cell = document.createElement('td');
+          cell.colSpan = 9; cell.textContent = message; row.append(cell); rows.replaceChildren(row);
+        }
+        async function load() {
+          const requestSequence = ++sequence;
+          const params = new URLSearchParams(activeFilters); params.set('page', String(page));
+          status.textContent = 'Loading ' + params.get('site') + '…';
+          previous.disabled = next.disabled = true;
+          rows.replaceChildren(); document.getElementById('visitor-summary').textContent = ''; document.getElementById('visitor-page').textContent = '';
+          try {
+            const response = await fetch('/admin/usage.json?' + params, { cache: 'no-store', credentials: 'same-origin', redirect: 'error' });
+            if (!response.ok) throw new Error(response.status === 403 || response.status === 401 ? 'Your session has expired. Reload this page to sign in.' : response.status === 400 ? 'Choose a valid range within the last 30 reporting days.' : 'Private statistics are temporarily unavailable.');
+            const value = await response.json();
+            if (requestSequence !== sequence) return;
+            if (value.site !== params.get('site')) throw new Error('Unexpected site in the response.');
+            for (const visitor of value.rows) {
+              const row = document.createElement('tr');
+              const values = [visitor.ip, visitor.country || 'Unknown', visitor.city || 'Unknown', visitor.provider || 'Unknown', number.format(visitor.total), number.format(visitor.web), number.format(visitor.api), number.format(visitor.errors), date.format(new Date(visitor.last_seen))];
+              values.forEach((text, index) => {
+                const cell = document.createElement('td'); cell.textContent = text;
+                if (index === 0) cell.className = 'font-mono whitespace-nowrap';
+                row.append(cell);
+              });
+              rows.append(row);
+            }
+            if (!value.rows.length) empty('No recorded source IPs match these filters.');
+            const pages = Math.max(1, Math.ceil(value.matched_ips / value.page_size));
+            document.getElementById('visitor-summary').textContent = number.format(value.matched_ips) + (value.matched_ips === 1 ? ' source IP · ' : ' source IPs · ') + number.format(value.totals.total) + (value.totals.total === 1 ? ' request' : ' requests');
+            document.getElementById('visitor-page').textContent = 'Page ' + page + ' of ' + pages;
+            previous.disabled = page <= 1; next.disabled = page >= pages;
+            status.textContent = value.site + ' · updated ' + date.format(new Date(value.updated_at)) + (value.site === 'ip.behnam.pro' ? ' · container reports may take about a minute to arrive' : '');
+          } catch (error) {
+            if (requestSequence !== sequence) return;
+            empty('Statistics could not be loaded.'); status.textContent = error.message;
+          }
+        }
+        form.addEventListener('submit', event => { event.preventDefault(); activeFilters = new URLSearchParams(new FormData(form)); page = 1; void load(); });
+        document.getElementById('visitor-site').addEventListener('change', () => { activeFilters = new URLSearchParams(new FormData(form)); page = 1; void load(); });
+        document.getElementById('visitor-refresh').addEventListener('click', () => void load());
+        previous.addEventListener('click', () => { page--; void load(); });
+        next.addEventListener('click', () => { page++; void load(); });
+        void load();
+      })();
+    </script>
+  </body>
+</html>

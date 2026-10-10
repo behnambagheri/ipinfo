@@ -71,6 +71,8 @@ spec:
               value: {{ $stats.endpoint | quote }}
             - name: IPINFO_STATS_DIR
               value: /var/lib/ipinfo/statistics
+            - name: IPINFO_VISITOR_STATS_ENABLED
+              value: {{ $stats.visitorIPs | default false | quote }}
             - name: IPINFO_STATS_PROXY
               {{- if ($stats.proxySecret | default dict).name }}
               valueFrom:

@@ -55,7 +55,7 @@ export function createHTTPServer(databases, updater, config, statistics) {
       const secure = incoming.socket.encrypted || (config.headers.length > 0 && incoming.headers['x-forwarded-proto'] === 'https');
       const request = new Request(`${secure ? 'https' : 'http'}://${host}${incoming.url}`, { method: incoming.method, headers: requestHeaders });
       const ip = clientIP(incoming, config.headers);
-      const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, statistics,
+      const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, statistics, visitors: statistics?.visitors,
         hostname: config.reverseLookup ? hostname : undefined,
         portCheck: config.portLookup ? value => checkPort(ip, value) : undefined };
       const result = await handleRequest(request, env, context);

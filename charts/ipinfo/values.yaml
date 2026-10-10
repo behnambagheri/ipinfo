@@ -27,6 +27,8 @@ portLookup: false
 reverseLookup: true
 statistics:
   enabled: false
+  # Private source-IP counts, retained for 30 reporting days.
+  visitorIPs: false
   endpoint: https://ip.bea.sh/internal/usage
   # The Secret contains the reporting token, never a Cloudflare account API token.
   existingSecret: ""

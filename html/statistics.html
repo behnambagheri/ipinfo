@@ -49,6 +49,7 @@
           <h2 id="counting-title" class="card-title">What is counted?</h2>
           <p class="text-sm leading-relaxed text-base-content/70">These figures belong only to {{ .Site }}. Each diagnostic GET request counts once, including requests from browsers, curl, wget, scripts, and bots. Web means an HTML response; API means JSON or plain text. These are request counts, not unique visitors.</p>
           <p class="text-sm leading-relaxed text-base-content/70">Assets, health checks, database metadata, statistics, HEAD, and OPTIONS requests are excluded. Error responses from diagnostic routes are included. No visitor IPs, lookup addresses, or complete User-Agent strings are stored in these counters.</p>
+          <p class="text-sm leading-relaxed text-base-content/70">When enabled, a separate private usage report retains source IPs and approximate country, city, and network provider for 30 reporting days. Those records are accessible only to authorized administrators.</p>
           <p class="text-sm leading-relaxed text-base-content/70">Counts begin when tracking is enabled. Reporting failures can delay updates; requests that could not be recorded are absent from these figures.</p>
           <p class="text-sm leading-relaxed text-base-content/70">Daily counts use fixed reporting windows. Their start and end times are converted to your time zone; they may differ from your local midnight-to-midnight calendar day.</p>
           <p id="statistics-started" class="text-xs text-base-content/60"></p>

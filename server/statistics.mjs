@@ -3,10 +3,12 @@ import { join } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
 import { containerSite, reportPath, validateReport } from '../worker/statistics.mjs';
 import { statisticsFetch } from './statistics-transport.mjs';
+import { visitorsEnabled } from '../worker/visitors.mjs';
+import { ContainerVisitors } from './visitors.mjs';
 
 // Each process owns one file. Atomic rename works on the cluster's shared NFS volume;
 // replicas never edit each other's files and can safely resend the same cumulative counts.
-async function atomicJSON(path, value) {
+export async function atomicJSON(path, value) {
   const temporary = `${path}.tmp-${randomUUID()}`;
   try {
     const file = await open(temporary, 'wx', 0o600);
@@ -29,7 +31,7 @@ export function statisticsConfig(env = process.env) {
     const proxyURL = new URL(proxy);
     if (!['http:', 'https:', 'socks5:', 'socks5h:'].includes(proxyURL.protocol) || !proxyURL.hostname || proxyURL.hash || proxyURL.search || (proxyURL.pathname && proxyURL.pathname !== '/')) throw new Error('Invalid statistics proxy');
   }
-  return { endpoint: url.href, token, proxy, directory: env.IPINFO_STATS_DIR || '/var/lib/ipinfo/statistics' };
+  return { endpoint: url.href, token, proxy, visitorIPs: visitorsEnabled(env), directory: env.IPINFO_STATS_DIR || '/var/lib/ipinfo/statistics' };
 }
 export class ContainerStatistics {
   site = containerSite;
@@ -37,9 +39,11 @@ export class ContainerStatistics {
     this.config = config; this.fetcher = fetcher; this.intervalMs = intervalMs; this.now = now;
     this.source = randomUUID(); this.rows = new Map(); this.sent = new Map(); this.persisting = Promise.resolve();
     this.cached = null; this.syncing = null; this.lastError = null;
+    if (config.visitorIPs) this.visitors = new ContainerVisitors(config, this.source, fetcher, now);
   }
   async initialize() {
     await mkdir(this.config.directory, { recursive: true });
+    await this.visitors?.initialize();
     try {
       const cached = JSON.parse(await readFile(join(this.config.directory, 'snapshot.json'), 'utf8'));
       if (validSnapshot(cached)) this.cached = cached;
@@ -66,7 +70,10 @@ export class ContainerStatistics {
   }
   sync() {
     if (this.syncing) return this.syncing;
-    this.syncing = this.synchronize().catch(() => { this.lastError = 'Statistics synchronization is temporarily unavailable.'; })
+    this.syncing = Promise.all([
+      this.synchronize().catch(() => { this.lastError = 'Statistics synchronization is temporarily unavailable.'; }),
+      this.visitors?.sync().catch(() => { console.warn('Visitor synchronization is temporarily unavailable.'); }),
+    ])
       .finally(() => { this.syncing = null; });
     return this.syncing;
   }

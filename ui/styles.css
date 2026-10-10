@@ -7,6 +7,7 @@
 @source "../html/pwa.html";
 @source "../html/offline.html";
 @source "../html/statistics.html";
+@source "../html/admin.html";
 @source "../html/statistics-footer.html";
 @source "../worker/lookup-error.html";
 @plugin "daisyui" {

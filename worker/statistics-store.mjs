@@ -31,7 +31,7 @@ export class WorkerStatistics {
   }
 }
 
-async function authorized(request, secret) {
+export async function authorized(request, secret) {
   if (typeof secret !== 'string' || secret.length < 32) return false;
   const supplied = request.headers.get('authorization') || '';
   if (supplied.length > 512) return false;
@@ -40,7 +40,7 @@ async function authorized(request, secret) {
   const a = new Uint8Array(expected), b = new Uint8Array(actual);
   return a.reduce((diff, byte, index) => diff | (byte ^ b[index]), 0) === 0;
 }
-async function boundedJSON(request) {
+export async function boundedJSON(request, maximumBytes = 16384) {
   if (!request.headers.get('content-type')?.startsWith('application/json') || !request.body) throw new Error('Expected JSON');
   const reader = request.body.getReader();
   const chunks = []; let size = 0;
@@ -49,7 +49,7 @@ async function boundedJSON(request) {
       const { done, value } = await reader.read();
       if (done) break;
       size += value.length;
-      if (size > 16384) { await reader.cancel(); throw new Error('Report too large'); }
+      if (size > maximumBytes) { await reader.cancel(); throw new Error('Report too large'); }
       chunks.push(value);
     }
   } finally { reader.releaseLock(); }

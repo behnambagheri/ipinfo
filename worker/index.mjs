@@ -6,6 +6,7 @@ import { lookupGeoIP, databaseInfo } from './geoip.mjs';
 import { renderStatistics } from './statistics-page.generated.mjs';
 import { usageEvent } from './statistics.mjs';
 import { renderUsage } from './usage.mjs';
+import { visitorEvent } from './visitors.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -26,8 +27,8 @@ function visitorData(ip, request) {
 }
 export async function handleRequest(request, env = {}, context = {}) {
   const result = await diagnosticResponse(request, env, context);
+  const event = usageEvent(request, result);
   if (context.statistics) {
-    const event = usageEvent(request, result);
     if (event) {
       // Recording never turns a successful diagnostic into an error response.
       const pending = Promise.resolve().then(() => context.statistics.record(event)).catch(() => {
@@ -36,6 +37,20 @@ export async function handleRequest(request, env = {}, context = {}) {
       if (context.waitUntil) context.waitUntil(pending);
       else await pending;
     }
+  }
+  if (event && context.visitors) {
+    const pending = Promise.resolve().then(async () => {
+      const ip = normalizeIP(context.clientIP ?? request.headers.get('CF-Connecting-IP'));
+      if (!ip) return;
+      let data = {};
+      try {
+        // Always enrich the connection's source, never a user-supplied lookup address.
+        data = env.LOCAL_GEOIP ? await env.LOCAL_GEOIP.lookup(ip) : visitorData(ip, request);
+      } catch { /* Keep counts even when geolocation is unavailable. */ }
+      await context.visitors.record(visitorEvent(event, ip, data));
+    }).catch(() => { console.warn('Visitor recording is temporarily unavailable.'); });
+    if (context.waitUntil) context.waitUntil(pending);
+    else await pending;
   }
   return result;
 }

@@ -508,9 +508,60 @@ API, regardless of the User-Agent. Browsers can also make API requests. Bots
 and scripts count too; these figures are **requests, not unique visitors**.
 Diagnostic errors count in the total and in the errors subset. HEAD, OPTIONS,
 other methods, health probes, database metadata, public assets, unknown routes,
-statistics reads, and reporting requests are excluded. Counters retain no
-visitor IPs, lookup addresses, cookies, or complete User-Agent strings.
+statistics reads, and reporting requests are excluded. These public aggregate
+counters retain no visitor IPs, lookup addresses, cookies, or complete User-Agent strings.
 Tracking begins when enabled; no historical usage is inferred.
+
+### Private source-IP report
+
+The Worker serves `/admin/usage` and `/admin/usage.json`. Both require a signed
+Cloudflare Access application JWT, validated against the configured team issuer,
+application audience, expiry, and administrator email allowlist. Missing
+configuration, forged identity headers, and invalid tokens return 403. The
+reporting token cannot read private records. Private responses use
+`Cache-Control: private, no-store`, have no public CORS grant, and are excluded
+from search indexing and diagnostic counters. The container does not serve
+these admin routes.
+
+The dashboard selects **one site at a time**, sorts source IPs by request count,
+and provides UTC reporting-day filters, search, and pagination. Each row includes
+the IP, approximate country and city, network provider (ASN organization), total,
+web/API/error counts, and last activity in the viewer's time zone. Provider may
+identify a VPN or hosting network; missing geolocation is shown as Unknown.
+Counts belong to the connection's source address, even for explicit-IP lookups.
+No lookup target, full User-Agent, or cookie is retained in this report.
+
+`migrations/0002_private_visitors.sql` adds the separate `usage_ip_daily` table.
+IP records cover the last **30 UTC reporting days including today**, and do not
+alter the public all-time counters. A daily Worker cron removes expired rows;
+reads and container replays also exclude expired days. Container spool files
+have mode 0600 in a private directory and are deleted during synchronization
+when expired. A stopped container cleans expired spool files when reporting
+resumes. Reporting failures do not break diagnostics; successful reports are
+idempotent across retries, restarts and replicas.
+
+Before enabling browser access:
+
+1. Enable Cloudflare Access in this account and create a self-hosted application
+   covering **`ip.bea.sh/admin` and all descendants**. Leave the public service
+   and `/internal/*` outside the Access application.
+2. Configure an Allow policy for only the administrator email addresses, with
+   email one-time PIN or an existing identity provider. Do not add a public
+   bypass policy. Copy the application's audience (AUD) and team domain.
+3. Create Worker secrets `IPINFO_ACCESS_ISSUER=https://TEAM.cloudflareaccess.com`,
+   `IPINFO_ACCESS_AUD=APPLICATION_AUD`, and `IPINFO_ADMIN_EMAILS` with the comma-separated
+   administrator addresses using `npx wrangler secret put NAME`. Secret bindings
+   persist across CI deployments and keep the email allowlist out of the repository.
+4. Apply D1 migrations and deploy the Worker. Verify anonymous access is gated,
+   signed-out requests cannot read JSON, and an allowed user can open the dashboard.
+
+`IPINFO_VISITOR_STATS_ENABLED=true` enables private recording. It is enabled
+in the Worker configuration. For the container, enable statistics and set
+Helm `statistics.visitorIPs=true` (or set the same environment variable in Docker).
+The existing authenticated reporting token transports cumulative private counts
+to `/internal/visitors`; it remains distinct from administrator login.
+Tracking begins after the updated runtime is deployed and recording is enabled;
+existing aggregate counts cannot reconstruct historical source IPs.
 
 ### Cloudflare setup
 

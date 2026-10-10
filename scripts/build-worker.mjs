@@ -55,6 +55,7 @@ async function compile(name, output, exportName, decorate = source => source) {
 }
 await compile('index.html', 'worker/render.generated.mjs', 'render', source => source.replace('<section aria-labelledby="ip-title"', `${lookupError}<section aria-labelledby="ip-title"`));
 await compile('statistics.html', 'worker/statistics-page.generated.mjs', 'renderStatistics');
+await compile('admin.html', 'worker/admin-page.generated.mjs', 'renderAdmin');
 await build({ entryPoints: ['worker/cloudflare.mjs'], outfile: 'dist/worker.mjs', bundle: true, external: ['cloudflare:sockets'], format: 'esm', platform: 'browser', target: 'es2022', minify: true });
 await build({ entryPoints: ['server/index.mjs'], outfile: 'dist/server.mjs', bundle: true, format: 'esm', platform: 'node', target: 'node24', banner: { js: 'import { createRequire } from "node:module"; const require = createRequire(import.meta.url);' } });
 console.log('Built Worker and container service from the shared IPinfo handler and templates.');
