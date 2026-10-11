@@ -9,7 +9,6 @@ COPY ui/ ./ui/
 COPY public/ ./public/
 COPY worker/ ./worker/
 COPY server/ ./server/
-COPY desktop/ ./desktop/
 COPY scripts/ ./scripts/
 COPY tests/ ./tests/
 COPY migrations/ ./migrations/

@@ -44,6 +44,7 @@ test('private counts preserve source identity, response classification and missi
 });
 
 test('Cloudflare source metadata comes from trusted edge fields and recording failures preserve responses', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: now.getTime() });
   const { db } = await usageDatabase(t);
   const req = request('/json?ip=invalid', { 'X-Forwarded-For': '9.9.9.9' });
   req.cf = { country: 'IR', city: 'Tehran', asOrganization: 'Example network' };
@@ -81,6 +82,7 @@ test('SQLite aggregation is site scoped, ranked, paginated and idempotent across
 });
 
 test('expiry removes only IP records and stale replays cannot recreate expired data', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: now.getTime() });
   const { db, sqlite } = await usageDatabase(t), visitors = new WorkerVisitors(db), stats = new WorkerStatistics(db);
   const old = event('1.1.1.1', new Date('2026-09-10T12:00:00.000Z'));
   const boundary = event('8.8.8.8', new Date('2026-09-11T00:00:00.000Z'));
