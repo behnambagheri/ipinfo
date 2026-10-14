@@ -64,7 +64,7 @@ export function createHTTPServer(databases, updater, config, statistics, rateLim
       }
       const request = new Request(`${secure ? 'https' : 'http'}://${host}${incoming.url}`, { method: incoming.method, headers: requestHeaders, body });
       const ip = clientIP(incoming, config.headers);
-      const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, statistics, visitors: statistics?.visitors,
+      const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, canonicalOrigin: config.canonicalOrigin, statistics, visitors: statistics?.visitors,
         rateLimit: rateLimits ? source => rateLimits.check(source) : undefined,
         hostname: config.reverseLookup ? hostname : undefined,
         portCheck: config.portLookup ? value => checkPort(ip, value) : undefined };

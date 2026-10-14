@@ -61,7 +61,7 @@ test('container health, metadata, error handling, HEAD and custom lookup configu
   assert.equal((await fetch(origin + '/json', { method: 'OPTIONS' })).status, 204);
   assert.equal(await (await fetch(origin + '/json', { method: 'HEAD' })).text(), '');
   const html = await (await fetch(origin + '/?ip=81.2.69.160', { headers: { Accept: 'text/html' } })).text();
-  assert.match(html, /IPinfo — bea.sh/); assert.match(html, /London/); assert.ok(!html.includes('{{')); assert.ok(!html.includes('echoip'));
+  assert.match(html, /IPinfo — What Is My IP Address\? \| bea.sh/); assert.match(html, /London/); assert.ok(!html.includes('{{')); assert.ok(!html.includes('echoip'));
   const { origin: restricted } = await localServer(t, { disableCustomIP: true });
   assert.equal((await fetch(restricted + '/json?ip=8.8.8.8')).status, 400);
 });
@@ -72,4 +72,10 @@ test('optional container port checks connect only to the requesting peer', async
   const { origin } = await localServer(t, { portLookup: true });
   const result = await (await fetch(`${origin}/port/${target.address().port}?ip=8.8.8.8`)).json();
   assert.equal(result.ip, '127.0.0.1'); assert.equal(result.reachable, true); assert.equal(result.status, 'open');
+});
+
+test('container canonical URL setting accepts only a bare origin', () => {
+  assert.equal(serverConfig({ IPINFO_CANONICAL_URL: 'https://ip.bea.sh' }).canonicalOrigin, 'https://ip.bea.sh');
+  assert.equal(serverConfig({}).canonicalOrigin, undefined);
+  for (const value of ['ftp://ip.bea.sh', 'https://ip.bea.sh/path', 'https://ip.bea.sh/?a=1', 'not a url']) assert.throws(() => serverConfig({ IPINFO_CANONICAL_URL: value }));
 });

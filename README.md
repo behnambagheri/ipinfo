@@ -1,4 +1,21 @@
-# IPinfo — bea.sh
+# IPinfo — what is my IP address? IP lookup and geolocation API
+
+[![CI](https://github.com/behnambagheri/ipinfo/actions/workflows/ci.yml/badge.svg)](https://github.com/behnambagheri/ipinfo/actions/workflows/ci.yml)
+[![Live: ip.bea.sh](https://img.shields.io/badge/live-ip.bea.sh-2563eb)](https://ip.bea.sh)
+
+**[ip.bea.sh](https://ip.bea.sh)** shows your public IPv4 or IPv6 address, ISP/ASN,
+and approximate location, and looks up any IP address. The same data is
+available as plain text or JSON for `curl` and scripts, and as an MCP server
+for AI agents. Run it on Cloudflare Workers or self-host it with Docker or
+Kubernetes using MaxMind GeoLite2 databases; no third-party geolocation API
+is called.
+
+```sh
+curl ip.bea.sh                          # your public IP
+curl ip.bea.sh/json                     # IP, country, city, ASN, time zone, coordinates
+curl 'ip.bea.sh/json?ip=8.8.8.8'        # look up any IPv4 or IPv6 address
+curl ip.bea.sh/asn-org                  # your ISP / network organization
+```
 
 An IP and network diagnostic service for [bea.sh](https://bea.sh), with a
 responsive daisyUI 5 / Tailwind CSS 4 interface. The blue accents,
@@ -129,6 +146,7 @@ Agents can discover and use the service without reading this README:
 | `/openapi.json` | OpenAPI 3.1 description generated for the requesting origin and enabled features |
 | `/.well-known/api-catalog` | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) API catalog linking the description, docs, and health |
 | `/robots.txt` | Allows crawling except `/admin` and `/internal/` |
+| `/sitemap.xml` | Sitemap listing the home page for search engines |
 | `/mcp` | Stateless [Model Context Protocol](https://modelcontextprotocol.io/) server over Streamable HTTP |
 
 Every response carries a `Link` header pointing to `/openapi.json`, `/llms.txt`,
@@ -636,9 +654,16 @@ attribution and database update/removal requirements.
 | `IPINFO_PORT_LOOKUP` | `false` |
 | `IPINFO_REVERSE_LOOKUP` | `true` |
 | `IPINFO_DISABLE_CUSTOM_IP` | `false` |
+| `IPINFO_CANONICAL_URL` | Empty (each host is its own canonical URL) |
 | `IPINFO_ASN_DATABASE` | `/data/geolite2/GeoLite2-ASN.mmdb` |
 | `IPINFO_CITY_DATABASE` | `/data/geolite2/GeoLite2-City.mmdb` |
 | `IPINFO_COUNTRY_DATABASE` | `/data/geolite2/GeoLite2-Country.mmdb` |
+
+`IPINFO_CANONICAL_URL` takes a bare origin such as `https://ip.bea.sh`. When a
+deployment mirrors another, the page's canonical link, Open Graph URL, and
+structured data point at that origin so search engines index only one copy.
+The Worker reads the same variable. Lookup pages such as `/?ip=8.8.8.8` always
+declare `/` as canonical.
 
 Boolean options accept `true`, `false`, `1`, or `0`. An explicitly empty
 database path disables that database. `IPINFO_CACHE_SIZE` bounds an optional

@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { canonicalOrigin } from '../worker/render.mjs';
 
 // Old environment names remain aliases during migration; this service has no echoip dependency.
 export function setting(env, name, fallback) {
@@ -48,6 +49,7 @@ export function serverConfig(env = process.env) {
     reverseLookup: boolean(setting(env, 'REVERSE_LOOKUP', 'true')),
     portLookup: boolean(setting(env, 'PORT_LOOKUP', 'false')),
     disableCustomIP: boolean(setting(env, 'DISABLE_CUSTOM_IP', 'false')), cacheSize,
+    canonicalOrigin: setting(env, 'CANONICAL_URL', '') ? canonicalOrigin(setting(env, 'CANONICAL_URL')) : undefined,
     databasePaths: Object.fromEntries(['ASN', 'City', 'Country'].map(name => [name, setting(env, `${name.toUpperCase()}_DATABASE`, `/data/geolite2/GeoLite2-${name}.mmdb`)])),
     updateDirectory: setting(env, 'DATABASE_UPDATE_DIR', '/var/lib/ipinfo/geolite2'),
     revision: env.BUILD_REVISION || 'development' };

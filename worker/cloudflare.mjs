@@ -6,10 +6,12 @@ import { visitorsEnabled } from './visitors.mjs';
 import { adminResponse } from './admin.mjs';
 import { WorkerRateLimits, rateLimitCollectionResponse } from './rate-limits.mjs';
 import { workerSite } from './statistics.mjs';
+import { canonicalOrigin } from './render.mjs';
 
 export async function handleCloudflareRequest(request, env = {}, context = {}, connectSocket) {
   const enabled = [true, 'true', '1'].includes(env.IPINFO_PORT_LOOKUP ?? env.ECHOIP_PORT_LOOKUP);
   const runtime = { waitUntil: context.waitUntil?.bind(context) };
+  if (env.IPINFO_CANONICAL_URL) runtime.canonicalOrigin = canonicalOrigin(env.IPINFO_CANONICAL_URL);
   if (env.USAGE_DB) runtime.statistics = new WorkerStatistics(env.USAGE_DB);
   if (env.USAGE_DB && visitorsEnabled(env)) runtime.visitors = new WorkerVisitors(env.USAGE_DB);
   const limits = env.USAGE_DB ? new WorkerRateLimits(env.USAGE_DB) : undefined;

@@ -31,7 +31,7 @@ test('content negotiation returns plain IP to curl and JSON when requested', asy
 test('shared HTML renders safely with an initially hidden map and hides container-only port feature', async () => {
   const result = await handleRequest(request('/', { Accept: 'text/html', 'User-Agent': '</script><script>alert(1)</script>' }));
   const html = await result.text();
-  assert.match(html, /IPinfo — bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
+  assert.match(html, /IPinfo — What Is My IP Address\? \| bea.sh/); assert.match(html, /openstreetmap.org\/export\/embed/);
   assert.match(html, /id="toggle-map"[^>]*aria-expanded="false"[^>]*>Show on map<\/button>/);
   assert.match(html, /id="map-section"[^>]*class="[^"]*hidden"/);
   assert.match(html, /<iframe[^>]*data-src="https:\/\/www\.openstreetmap\.org\/export\/embed/);

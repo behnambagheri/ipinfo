@@ -7,7 +7,7 @@ import { renderStatistics } from './statistics-page.generated.mjs';
 import { usageEvent, diagnosticPath } from './statistics.mjs';
 import { renderUsage } from './usage.mjs';
 import { visitorEvent } from './visitors.mjs';
-import { discoveryLinks, renderLlms, openAPI, apiCatalog, robots } from './agents.mjs';
+import { discoveryLinks, renderLlms, openAPI, apiCatalog, robots, sitemap } from './agents.mjs';
 import { mcpResponse } from './mcp.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
@@ -68,6 +68,7 @@ async function diagnosticResponse(request, env = {}, context = {}) {
   if (url.pathname === '/openapi.json') return response(JSON.stringify(openAPI(url, context), null, 2) + '\n', 200, 'application/openapi+json; charset=utf-8', head);
   if (url.pathname === '/.well-known/api-catalog') return response(JSON.stringify(apiCatalog(url), null, 2) + '\n', 200, 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"', head);
   if (url.pathname === '/robots.txt') return response(robots(url), 200, undefined, head);
+  if (url.pathname === '/sitemap.xml') return response(sitemap(url), 200, 'application/xml; charset=utf-8', head);
   if (['/stats', '/stats.json'].includes(url.pathname)) {
     if (!context.statistics) return json({ error: 'Statistics are not configured.' }, 503, head);
     if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site }), 200, 'text/html; charset=utf-8', head);

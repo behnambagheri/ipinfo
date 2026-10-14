@@ -32,13 +32,16 @@ test('discovery documents describe the requesting origin and advertise each othe
 
   const robots = await (await handleRequest(request('/robots.txt'))).text();
   assert.match(robots, /Disallow: \/admin/); assert.match(robots, /Disallow: \/internal\//);
+  assert.match(robots, /^Sitemap: https:\/\/ip\.bea\.sh\/sitemap\.xml$/m);
+  const map = await handleRequest(request('/sitemap.xml'));
+  assert.match(map.headers.get('content-type'), /^application\/xml/); assert.match(await map.text(), /<loc>https:\/\/ip\.bea\.sh\/<\/loc>/);
   assert.match((await handleRequest(request('/json'))).headers.get('link'), /<\/openapi\.json>; rel="service-desc"/);
 });
 
 test('discovery documents are not counted or rate limited', async () => {
   const recorded = [];
   const context = { statistics: { site: 'ip.bea.sh', record: event => recorded.push(event), snapshot: async () => ({}) }, rateLimit: async () => ({ allowed: false, retry_after: 60 }) };
-  for (const path of ['/llms.txt', '/openapi.json', '/.well-known/api-catalog', '/robots.txt']) assert.equal((await handleRequest(request(path), {}, context)).status, 200);
+  for (const path of ['/llms.txt', '/openapi.json', '/.well-known/api-catalog', '/robots.txt', '/sitemap.xml']) assert.equal((await handleRequest(request(path), {}, context)).status, 200);
   assert.equal(recorded.length, 0);
 });
 
@@ -112,4 +115,12 @@ test('usage guide shows MCP setup commands for the requesting origin', async () 
   assert.ok(text.includes('claude mcp add --transport http ipinfo https://ip.bea.sh/mcp'));
   assert.ok(text.includes('codex mcp add ipinfo --url https://ip.bea.sh/mcp'));
   assert.ok(!text.includes('check_port'));
+});
+
+test('the page names one canonical URL for every host and lookup', async () => {
+  const page = async (path, context) => (await handleRequest(request(path, { headers: { Accept: 'text/html' } }), {}, context)).text();
+  assert.match(await page('/'), /<link rel="canonical" href="https:\/\/ip\.bea\.sh\/" \/>/);
+  const mirrored = await page('/', { canonicalOrigin: 'https://example.com' });
+  assert.match(mirrored, /<link rel="canonical" href="https:\/\/example\.com\/" \/>/); assert.match(mirrored, /"url":"https:\/\/example\.com\/"/);
+  assert.match(mirrored, /<meta property="og:image" content="https:\/\/example\.com\/icons\/icon-512\.png" \/>/);
 });
