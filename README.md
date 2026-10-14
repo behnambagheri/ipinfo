@@ -767,3 +767,11 @@ Both use GeoLite2/MaxMind and the database mirror. The Worker uses Cloudflare me
 and owned GeoLite2 databases for explicit public-IP lookup.
 GeoLite2 data is created by [MaxMind](https://www.maxmind.com). Both interfaces use daisyUI,
 Tailwind CSS, and [OpenStreetMap](https://www.openstreetmap.org/copyright).
+
+## License
+
+The code in this repository is available under the [MIT License](LICENSE).
+Third-party components keep their own licenses; see
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). GeoLite2 databases are not
+covered by the MIT License and remain subject to MaxMind's GeoLite End User
+License Agreement.

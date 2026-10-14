@@ -21,6 +21,7 @@
   },
   "version": "1.2.2",
   "description": "IP and network diagnostics for bea.sh",
+  "license": "MIT",
   "dependencies": {
     "jose": "^6.2.12",
     "mmdb-lib": "3.0.3"
