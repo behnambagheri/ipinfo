@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 export async function usageDatabase(t) {
   const sqlite = new DatabaseSync(':memory:');
-  for (const migration of ['0001_usage.sql', '0002_private_visitors.sql']) sqlite.exec(await readFile(new URL(`../../migrations/${migration}`, import.meta.url), 'utf8'));
+  for (const migration of ['0001_usage.sql', '0002_private_visitors.sql', '0003_rate_limits.sql']) sqlite.exec(await readFile(new URL(`../../migrations/${migration}`, import.meta.url), 'utf8'));
   t.after(() => sqlite.close());
   const db = {
     prepare(sql) {

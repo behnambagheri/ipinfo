@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
     <link rel="icon" href="/brand/ipinfo.svg" type="image/svg+xml" />
-    <title>Private usage — IPinfo</title>
+    <title>Admin — IPinfo</title>
     {{ template "theme.html" . }}
     {{ template "styles.html" . }}
   </head>
@@ -14,11 +14,26 @@
       <header class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <a class="link link-hover text-sm text-base-content/60" href="/">← IPinfo home</a>
-          <h1 class="mt-3 text-3xl font-semibold">Private source-IP usage</h1>
+          <h1 class="mt-3 text-3xl font-semibold">IPinfo admin</h1>
           <p class="mt-2 text-sm text-base-content/70">Requests by source address · visible only to authorized accounts</p>
         </div>
         <a class="btn btn-sm" href="/cdn-cgi/access/logout">Sign out</a>
       </header>
+      <section class="card card-border bg-base-100" aria-labelledby="rate-limit-title">
+        <div class="card-body p-5 sm:p-7">
+          <h2 class="card-title" id="rate-limit-title">Request rate limit</h2>
+          <p class="text-sm leading-relaxed text-base-content/70">One rule for the selected site, applied separately to each source IP. Shared router and VPN addresses share a limit. IP lookups and port checks count toward the same limit, including HEAD requests.</p>
+          <form id="rate-limit-form" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <label class="space-y-2 text-sm"><span class="block">Site</span><select class="select w-full" id="rate-limit-site" name="site"><option value="ip.bea.sh">ip.bea.sh</option><option value="ip.behnam.pro">ip.behnam.pro</option></select></label>
+            <label class="space-y-2 text-sm"><span class="block">Limit</span><select class="select w-full" id="rate-limit-mode"><option value="unlimited">No limit</option><option value="limited">Custom limit</option></select></label>
+            <label class="space-y-2 text-sm"><span class="block">Requests per IP</span><input class="input w-full" id="rate-limit-count" type="number" min="1" max="1000000" step="1" value="1" required disabled /></label>
+            <label class="space-y-2 text-sm"><span class="block">Per</span><select class="select w-full" id="rate-limit-window" disabled><option value="1">Second</option><option value="60" selected>Minute</option><option value="3600">Hour</option><option value="86400">Day</option></select></label>
+            <div class="flex flex-wrap gap-2 sm:col-span-2 lg:col-span-4"><button class="btn" id="rate-limit-save" type="submit" disabled>Save rate limit</button></div>
+          </form>
+          <p id="rate-limit-status" role="status" aria-live="polite" class="text-sm text-base-content/70">Loading rate limit…</p>
+          <p class="text-xs leading-relaxed text-base-content/60">Excess requests return HTTP 429 with a retry time. Each window starts with the IP's first request. Saving a rule resets its active windows. Admin, assets, statistics, usage guide, database metadata, and health checks are excluded.</p>
+        </div>
+      </section>
       <section class="card card-border bg-base-100" aria-labelledby="filters-title">
         <div class="card-body p-5 sm:p-7">
           <h2 class="card-title" id="filters-title">Filter requests</h2>
@@ -56,6 +71,62 @@
       </section>
     </main>
     <script>
+      (() => {
+        const form = document.getElementById('rate-limit-form');
+        const site = document.getElementById('rate-limit-site');
+        const mode = document.getElementById('rate-limit-mode');
+        const count = document.getElementById('rate-limit-count');
+        const window = document.getElementById('rate-limit-window');
+        const save = document.getElementById('rate-limit-save');
+        const status = document.getElementById('rate-limit-status');
+        let sequence = 0;
+        function fields(busy = false) {
+          mode.disabled = busy;
+          count.disabled = window.disabled = busy || mode.value === 'unlimited';
+          save.disabled = busy;
+        }
+        async function request(options) {
+          const response = await fetch('/admin/rate-limit.json?site=' + encodeURIComponent(site.value), {
+            cache: 'no-store', credentials: 'same-origin', redirect: 'error', ...options,
+          });
+          const value = await response.json();
+          if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Your session has expired. Reload this page to sign in.' : value.error || 'Rate limits are temporarily unavailable.');
+          return value;
+        }
+        function summary(value) {
+          const unit = { 1: 'second', 60: 'minute', 3600: 'hour', 86400: 'day' }[value.window_seconds] || value.window_seconds + ' seconds';
+          return value.site + ': ' + (value.max_requests === 0 ? 'No limit' : value.max_requests + (value.max_requests === 1 ? ' request' : ' requests') + ' per ' + unit + ' per IP');
+        }
+        async function load() {
+          const current = ++sequence;
+          fields(true); status.textContent = 'Loading ' + site.value + ' rate limit…';
+          try {
+            const value = await request();
+            if (current !== sequence) return;
+            if (value.site !== site.value) throw new Error('Unexpected site in the response.');
+            mode.value = value.max_requests === 0 ? 'unlimited' : 'limited';
+            count.value = value.max_requests || 1;
+            if (!Array.from(window.options).some(option => Number(option.value) === value.window_seconds)) {
+              window.add(new Option(value.window_seconds + ' seconds', String(value.window_seconds)));
+            }
+            window.value = String(value.window_seconds);
+            fields(); status.textContent = summary(value);
+          } catch (error) { if (current === sequence) status.textContent = error.message; }
+        }
+        mode.addEventListener('change', () => fields());
+        site.addEventListener('change', () => void load());
+        form.addEventListener('submit', async event => {
+          event.preventDefault();
+          const value = { site: site.value, max_requests: mode.value === 'unlimited' ? 0 : Number(count.value), window_seconds: Number(window.value) };
+          fields(true); site.disabled = true; status.textContent = 'Saving rate limit…';
+          try {
+            const saved = await request({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+            status.textContent = 'Saved. ' + summary(saved);
+          } catch (error) { status.textContent = error.message; }
+          finally { site.disabled = false; fields(); }
+        });
+        void load();
+      })();
       (() => {
         const form = document.getElementById('visitor-filters');
         const status = document.getElementById('visitor-status');

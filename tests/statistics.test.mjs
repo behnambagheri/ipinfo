@@ -20,7 +20,7 @@ const request = (path = '/json', options = {}) => new Request(`https://${workerS
 const event = (type = 'api', now = new Date(), status = 200) => usageEvent(request(type === 'web' ? '/' : '/json'), new Response('', { status, headers: { 'Content-Type': type === 'web' ? 'text/html' : 'application/json' } }), now);
 async function database(t) {
   const sqlite = new DatabaseSync(':memory:');
-  sqlite.exec(await readFile(new URL('../migrations/0001_usage.sql', import.meta.url), 'utf8'));
+  for (const migration of ['0001_usage.sql', '0003_rate_limits.sql']) sqlite.exec(await readFile(new URL(`../migrations/${migration}`, import.meta.url), 'utf8'));
   t.after(() => sqlite.close());
   const db = {
     prepare(sql) {

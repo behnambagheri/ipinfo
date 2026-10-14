@@ -3,10 +3,12 @@ export const containerSite = 'ip.behnam.pro';
 export const reportPath = '/internal/usage';
 const routes = new Set(['/', '/ip', '/json', '/ip-decimal', '/country', '/country-iso', '/country-ir', '/city', '/region-name', '/region-code', '/postal-code', '/asn', '/asn-org', '/timezone', '/coordinates', '/latitude', '/longitude', '/user-agent']);
 
+export function diagnosticPath(path) { return routes.has(path) || path.startsWith('/port/'); }
+
 // Count diagnostic GET requests only; assets, probes, and statistics cannot inflate usage.
 export function usageEvent(request, result, now = new Date()) {
   const path = new URL(request.url).pathname;
-  if (request.method !== 'GET' || (!routes.has(path) && !path.startsWith('/port/'))) return null;
+  if (request.method !== 'GET' || !diagnosticPath(path)) return null;
   const timestamp = now.toISOString();
   return { day: timestamp.slice(0, 10), web: Number(result.headers.get('content-type')?.startsWith('text/html') === true),
     api: Number(result.headers.get('content-type')?.startsWith('text/html') !== true), errors: Number(result.status >= 400),

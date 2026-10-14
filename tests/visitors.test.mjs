@@ -134,8 +134,10 @@ test('dashboard and every admin data path fail closed, avoid public CORS and rej
     assert.equal((await response.text()).includes('8.8.8.8'), false); assert.match(response.headers.get('Cache-Control'), /no-store/);
   }
   const options = { authorize: async () => true, now };
-  const html = await adminResponse(request('/admin/usage'), {}, visitors, options);
+  const html = await adminResponse(request('/admin'), {}, visitors, options);
   assert.equal(html.status, 200); assert.match(await html.text(), /Country.*City.*Provider/s);
+  const redirect = await adminResponse(request('/admin/usage'), {}, visitors, options);
+  assert.equal(redirect.status, 308); assert.equal(redirect.headers.get('Location'), '/admin');
   const json = await adminResponse(request('/admin/usage.json'), {}, visitors, options);
   assert.equal((await json.json()).rows[0].ip, '8.8.8.8');
   assert.equal((await adminResponse(request('/admin/usage.json?site=combined'), {}, visitors, options)).status, 400);

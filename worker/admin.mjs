@@ -1,6 +1,9 @@
 import { authorizedAdmin } from './admin-auth.mjs';
 import { visitorFilters } from './visitors.mjs';
 import { renderAdmin } from './admin-page.generated.mjs';
+import { boundedJSON } from './statistics-store.mjs';
+import { workerSite, containerSite } from './statistics.mjs';
+import { validateRateLimit } from './rate-limits.mjs';
 
 const headers = {
   'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
@@ -12,14 +15,38 @@ function reply(value, status = 200, html = false, head = false) {
     status, headers: { ...headers, 'Content-Type': html ? 'text/html; charset=utf-8' : 'application/json; charset=utf-8' },
   });
 }
-export async function adminResponse(request, env, visitors, { authorize = authorizedAdmin, now = new Date() } = {}) {
+export async function adminResponse(request, env, visitors, { authorize = authorizedAdmin, now = new Date(), limits } = {}) {
   const url = new URL(request.url);
   if (url.pathname !== '/admin' && !url.pathname.startsWith('/admin/')) return null;
   const head = request.method === 'HEAD';
   // Authenticate every admin path before reading storage or rendering private UI.
   if (!await authorize(request, env)) return reply({ error: 'Private dashboard access is required.' }, 403, false, head);
+  if (url.pathname === '/admin/rate-limit.json') {
+    if (!['GET', 'HEAD', 'PUT'].includes(request.method)) return reply({ error: 'Method not allowed' }, 405);
+    if (!limits) return reply({ error: 'Rate limits are unavailable.' }, 503, false, head);
+    const site = url.searchParams.get('site') || workerSite;
+    if (![workerSite, containerSite].includes(site)) return reply({ error: 'Choose a valid site.' }, 400, false, head);
+    if (request.method === 'PUT') {
+      // Mutations require a same-origin JSON request in addition to the Access JWT.
+      if (request.headers.get('origin') !== url.origin || request.headers.get('sec-fetch-site') === 'cross-site') return reply({ error: 'Same-origin access is required.' }, 403);
+      let value;
+      try {
+        value = validateRateLimit(await boundedJSON(request, 1024));
+        if (value.site !== site) throw new Error('Site mismatch');
+      } catch { return reply({ error: 'Choose no limit or 1–1,000,000 requests per 1–86,400 seconds.' }, 400); }
+      try { return reply(await limits.save(value)); }
+      catch { return reply({ error: 'Rate limits could not be saved.' }, 503); }
+    }
+    try { return reply(await limits.settings(site), 200, false, head); }
+    catch { return reply({ error: 'Rate limits are temporarily unavailable.' }, 503, false, head); }
+  }
   if (!['GET', 'HEAD'].includes(request.method)) return reply({ error: 'Method not allowed' }, 405, false, head);
-  if (url.pathname === '/admin/usage') return reply(renderAdmin({}), 200, true, head);
+  if (url.pathname === '/admin') return reply(renderAdmin({}), 200, true, head);
+  if (['/admin/usage', '/admin/'].includes(url.pathname)) {
+    const redirect = reply(null, 308, false, head);
+    redirect.headers.set('Location', '/admin');
+    return redirect;
+  }
   if (url.pathname !== '/admin/usage.json') return reply({ error: 'Not found' }, 404, false, head);
   if (!visitors) return reply({ error: 'Visitor recording is disabled.' }, 503, false, head);
   let filters;

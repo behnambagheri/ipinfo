@@ -4,7 +4,7 @@ import { normalizeIP, decimalIP } from './ip.mjs';
 import { assets } from './assets.generated.mjs';
 import { lookupGeoIP, databaseInfo } from './geoip.mjs';
 import { renderStatistics } from './statistics-page.generated.mjs';
-import { usageEvent } from './statistics.mjs';
+import { usageEvent, diagnosticPath } from './statistics.mjs';
 import { renderUsage } from './usage.mjs';
 import { visitorEvent } from './visitors.mjs';
 
@@ -75,6 +75,16 @@ async function diagnosticResponse(request, env = {}, context = {}) {
   if (asset) return new Response(head ? null : Uint8Array.from(atob(asset.body), char => char.charCodeAt(0)), {
     headers: { ...securityHeaders, 'Content-Type': asset.type, 'Cache-Control': 'no-cache', ...(url.pathname === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}) },
   });
+  if (diagnosticPath(url.pathname) && context.rateLimit) {
+    try {
+      const result = await context.rateLimit(context.clientIP ?? request.headers.get('CF-Connecting-IP'));
+      if (!result.allowed) {
+        const limited = json({ error: 'Rate limit exceeded. Please try again later.', retry_after: result.retry_after }, 429, head);
+        limited.headers.set('Retry-After', String(result.retry_after));
+        return limited;
+      }
+    } catch { return json({ error: 'Rate limits are temporarily unavailable. Please try again later.' }, 503, head); }
+  }
   if (url.pathname.startsWith('/port/')) {
     if (context.portCheck) {
       try { return json(await context.portCheck(url.pathname.slice(6)), 200, head); }

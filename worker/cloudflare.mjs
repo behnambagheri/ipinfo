@@ -4,14 +4,20 @@ import { WorkerStatistics, collectionResponse } from './statistics-store.mjs';
 import { WorkerVisitors, visitorCollectionResponse } from './visitors-store.mjs';
 import { visitorsEnabled } from './visitors.mjs';
 import { adminResponse } from './admin.mjs';
+import { WorkerRateLimits, rateLimitCollectionResponse } from './rate-limits.mjs';
+import { workerSite } from './statistics.mjs';
 
 export async function handleCloudflareRequest(request, env = {}, context = {}, connectSocket) {
   const enabled = [true, 'true', '1'].includes(env.IPINFO_PORT_LOOKUP ?? env.ECHOIP_PORT_LOOKUP);
   const runtime = { waitUntil: context.waitUntil?.bind(context) };
   if (env.USAGE_DB) runtime.statistics = new WorkerStatistics(env.USAGE_DB);
   if (env.USAGE_DB && visitorsEnabled(env)) runtime.visitors = new WorkerVisitors(env.USAGE_DB);
-  const admin = await adminResponse(request, env, runtime.visitors);
+  const limits = env.USAGE_DB ? new WorkerRateLimits(env.USAGE_DB) : undefined;
+  if (limits) runtime.rateLimit = ip => limits.check(workerSite, ip);
+  const admin = await adminResponse(request, env, runtime.visitors, { limits });
   if (admin) return admin;
+  const limited = await rateLimitCollectionResponse(request, env, limits);
+  if (limited) return limited;
   const visitorReport = await visitorCollectionResponse(request, env, runtime.visitors);
   if (visitorReport) return visitorReport;
   const collected = await collectionResponse(request, env, runtime.statistics);
@@ -28,5 +34,6 @@ export default {
   fetch: handleCloudflareRequest,
   async scheduled(controller, env, context) {
     if (env.USAGE_DB) context.waitUntil(new WorkerVisitors(env.USAGE_DB).prune(new Date(controller.scheduledTime)));
+    if (env.USAGE_DB) context.waitUntil(new WorkerRateLimits(env.USAGE_DB).prune(new Date(controller.scheduledTime)));
   },
 };

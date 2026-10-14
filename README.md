@@ -151,7 +151,9 @@ Tracking begins when enabled; no historical usage is inferred.
 
 ### Private source-IP report
 
-The Worker serves `/admin/usage` and `/admin/usage.json`. Both require a signed
+The Worker serves the dashboard at `/admin`, with private usage data at
+`/admin/usage.json` and rate-limit settings at `/admin/rate-limit.json`.
+The old `/admin/usage` page redirects to `/admin`. All admin routes require a signed
 Cloudflare Access application JWT, validated against the configured team issuer,
 application audience, expiry, and administrator email allowlist. Missing
 configuration, forged identity headers, and invalid tokens return 403. The
@@ -199,6 +201,40 @@ The existing authenticated reporting token transports cumulative private counts
 to `/internal/visitors`; it remains distinct from administrator login.
 Tracking begins after the updated runtime is deployed and recording is enabled;
 existing aggregate counts cannot reconstruct historical source IPs.
+
+### Admin rate limits
+
+Open `/admin`, select a site in **Request rate limit**, then choose **No limit**
+or **Custom limit**, enter the request count, choose Second, Minute, Hour, or Day,
+and click **Save rate limit**. For example, one request per minute allows one
+diagnostic request from each source IP every 60 seconds. Both sites default to
+no limit. Rules persist in D1 independently of visitor recording.
+
+Each site has one rule applied separately to every normalized source IP. IP
+lookups and port checks share the same budget; GET and HEAD consume slots.
+Changing the lookup target does not change the source budget. Assets, health,
+database metadata, `/usage`, statistics, admin, and internal reporting are
+excluded. Existing usage counts continue to count diagnostic GETs, including
+rejected requests in the errors subset; HEAD still does not increase usage counts.
+Each window begins with its first request. Excess requests return HTTP 429 with
+`Retry-After` and JSON `retry_after` in seconds; rejected requests do not extend
+the window. Saving a rule resets that site's active windows.
+
+`migrations/0003_rate_limits.sql` adds settings and temporary counters. Counter
+keys hash the site and source IP rather than retaining plaintext addresses, and
+the daily cron deletes expired counters. Admission uses one atomic D1 statement
+so concurrent Worker instances and container replicas share the same budget.
+Admin saves require a signed Access JWT and a same-origin JSON PUT; the reporting
+token cannot edit rules.
+
+When configured with `IPINFO_STATS_ENDPOINT` and `IPINFO_STATS_REPORT_TOKEN`, the
+updated container checks its budget through authenticated `/internal/rate-limit`
+requests, using the same egress proxy as statistics. This adds a synchronous
+Worker/D1 dependency to diagnostic requests, including when the rule is unlimited.
+If the limit check fails, diagnostics return HTTP 503; health and support routes
+remain available. Containers without that reporting configuration have no
+central rate limit. Deploy the Worker migration and updated Worker before
+deploying the updated container; an older Worker has no limit-check endpoint.
 
 ### Cloudflare setup
 
