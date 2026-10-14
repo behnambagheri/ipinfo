@@ -7,13 +7,15 @@ import { renderStatistics } from './statistics-page.generated.mjs';
 import { usageEvent, diagnosticPath } from './statistics.mjs';
 import { renderUsage } from './usage.mjs';
 import { visitorEvent } from './visitors.mjs';
+import { discoveryLinks, renderLlms, openAPI, apiCatalog, robots } from './agents.mjs';
+import { mcpResponse } from './mcp.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
 const securityHeaders = {
   'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'no-referrer',
   'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; worker-src 'self'; manifest-src 'self'; connect-src 'self' https://api.ipify.org https://api6.ipify.org; frame-src https://www.openstreetmap.org; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
-  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Origin': '*', Link: discoveryLinks,
 };
 function response(body, status = 200, type = 'text/plain; charset=utf-8', head = false) {
   return new Response(head ? null : body, { status, headers: { ...securityHeaders, 'Content-Type': type } });
@@ -26,6 +28,8 @@ function visitorData(ip, request) {
   return { ip, ip_decimal: decimalIP(ip), country: country ? countries.of(country) : undefined, country_iso: country, country_ir: country === 'IR', city: cf.city, region_name: cf.region, region_code: cf.regionCode, postal_code: cf.postalCode, timezone: cf.timezone, latitude: number(cf.latitude), longitude: number(cf.longitude), asn: cf.asn ? `AS${cf.asn}` : undefined, asn_org: cf.asOrganization, user_agent: request.headers.get('user-agent') || '', source: 'Cloudflare' };
 }
 export async function handleRequest(request, env = {}, context = {}) {
+  // MCP tool calls re-enter here as GET requests, so they are limited and counted like the HTTP API.
+  if (new URL(request.url).pathname === '/mcp') return mcpResponse(request, context, inner => handleRequest(inner, env, context), securityHeaders);
   const result = await diagnosticResponse(request, env, context);
   const event = usageEvent(request, result);
   if (context.statistics) {
@@ -60,6 +64,10 @@ async function diagnosticResponse(request, env = {}, context = {}) {
   if (!['GET', 'HEAD'].includes(request.method)) return json({ error: 'Method not allowed' }, 405);
   const url = new URL(request.url);
   if (url.pathname === '/usage') return response(renderUsage(url, context), 200, undefined, head);
+  if (url.pathname === '/llms.txt') return response(renderLlms(url, context), 200, 'text/markdown; charset=utf-8', head);
+  if (url.pathname === '/openapi.json') return response(JSON.stringify(openAPI(url, context), null, 2) + '\n', 200, 'application/openapi+json; charset=utf-8', head);
+  if (url.pathname === '/.well-known/api-catalog') return response(JSON.stringify(apiCatalog(url), null, 2) + '\n', 200, 'application/linkset+json; profile="https://www.rfc-editor.org/info/rfc9727"', head);
+  if (url.pathname === '/robots.txt') return response(robots(url), 200, undefined, head);
   if (['/stats', '/stats.json'].includes(url.pathname)) {
     if (!context.statistics) return json({ error: 'Statistics are not configured.' }, 503, head);
     if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site }), 200, 'text/html; charset=utf-8', head);

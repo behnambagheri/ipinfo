@@ -70,6 +70,7 @@ or an IPv6 address for a custom lookup; otherwise the service reports the visito
 | `/healthz`, `/health` | Service health, build revision, and active database release |
 | `/stats`, `/stats.json` | Statistics page and JSON request counters for this deployment only, when configured |
 | `/port/<number>` | TCP check when enabled; otherwise HTTP 501 |
+| `/llms.txt`, `/openapi.json`, `/mcp` | Agent discovery and MCP; see [AI agents](#ai-agents) |
 
 ```sh
 curl ip.bea.sh/usage
@@ -117,6 +118,51 @@ address-family override. `curl -4` and `curl -6` choose curl's connection
 family, but a VPN or proxy can forward the request over a different family.
 The browser's optional IPv4/IPv6 buttons use ipify only when clicked; this
 browser behavior does not change the API's default connection detection.
+
+## AI agents
+
+Agents can discover and use the service without reading this README:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `/llms.txt` | Markdown summary of the API for LLMs ([llms.txt](https://llmstxt.org/)) |
+| `/openapi.json` | OpenAPI 3.1 description generated for the requesting origin and enabled features |
+| `/.well-known/api-catalog` | [RFC 9727](https://www.rfc-editor.org/rfc/rfc9727) API catalog linking the description, docs, and health |
+| `/robots.txt` | Allows crawling except `/admin` and `/internal/` |
+| `/mcp` | Stateless [Model Context Protocol](https://modelcontextprotocol.io/) server over Streamable HTTP |
+
+Every response carries a `Link` header pointing to `/openapi.json`, `/llms.txt`,
+and the API catalog. These documents are not rate limited or counted as usage.
+
+The MCP endpoint accepts JSON-RPC `POST` requests and replies with JSON; it keeps
+no sessions and opens no SSE streams (`GET` returns 405). It provides read-only
+tools `lookup_ip` (optional `ip`; omitted means the caller's public IP),
+`get_database_info`, and, when port checks are enabled, `check_port` for the
+caller's own IP. Tool calls are replayed as ordinary API requests, so they share
+the HTTP rate limit and count as API usage. `/usage` shows the same setup
+commands for the requested origin.
+
+Claude Code:
+
+```sh
+claude mcp add --transport http ipinfo https://ip.bea.sh/mcp
+```
+
+Codex CLI:
+
+```sh
+codex mcp add ipinfo --url https://ip.bea.sh/mcp
+```
+
+Or add it to `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.ipinfo]
+url = "https://ip.bea.sh/mcp"
+```
+
+Other clients that support Streamable HTTP MCP servers (for example Cursor,
+VS Code, or Claude Desktop) need only the URL; no token is required.
 
 ## Usage statistics
 

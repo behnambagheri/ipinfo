@@ -21,6 +21,9 @@ export function renderUsage(url, context = {}) {
     ['/database-info', 'Database build dates and update status'],
     ['/healthz, /health', 'Service health and build revision'],
     ['/usage', 'This guide'],
+    ['/openapi.json', 'OpenAPI 3.1 description of this API'],
+    ['/llms.txt', 'API summary for AI agents (Markdown)'],
+    ['/mcp', 'MCP server for AI agents (Streamable HTTP, POST)'],
   ];
   if (context.portCheck) endpoints.push(['/port/<number>', 'TCP port check on your connecting IP']);
   if (context.statistics) endpoints.push(['/stats', 'Usage statistics page'], ['/stats.json', 'Usage statistics as JSON']);
@@ -60,6 +63,13 @@ PORT TESTING
 ${context.portCheck ? `  ${command('/port/443')}
   Checks a TCP port (1-65535) on your connecting IP and returns JSON.
   The ?ip= parameter is ignored for port checks.` : '  Port testing is disabled or unavailable on this service.'}
+
+AI AGENTS (MCP)
+  claude mcp add --transport http ipinfo ${url.origin}/mcp
+  codex mcp add ipinfo --url ${url.origin}/mcp
+  Other MCP clients can connect to ${url.origin}/mcp (Streamable HTTP,
+  no authentication). Tools: lookup_ip, get_database_info${context.portCheck ? ', check_port' : ''}.
+  Agent docs: ${url.origin}/llms.txt and ${url.origin}/openapi.json
 
 NOTES
   With no ?ip= parameter, lookups use the IP visible to this service.

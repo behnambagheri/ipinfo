@@ -54,7 +54,15 @@ export function createHTTPServer(databases, updater, config, statistics, rateLim
       for (const [key, value] of Object.entries(incoming.headers)) if (value !== undefined) requestHeaders.set(key, Array.isArray(value) ? value.join(', ') : value);
       const host = incoming.headers.host || 'localhost';
       const secure = incoming.socket.encrypted || (config.headers.length > 0 && incoming.headers['x-forwarded-proto'] === 'https');
-      const request = new Request(`${secure ? 'https' : 'http'}://${host}${incoming.url}`, { method: incoming.method, headers: requestHeaders });
+      // Only the MCP endpoint accepts a request body; it is bounded before parsing.
+      let body;
+      if (incoming.method === 'POST' && incoming.url.split('?')[0] === '/mcp') {
+        const chunks = []; let size = 0;
+        for await (const chunk of incoming) { size += chunk.length; if (size > 65536) break; chunks.push(chunk); }
+        if (size > 65536) { outgoing.writeHead(413, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); outgoing.end('{"error":"Request body is too large."}\n'); return; }
+        body = Buffer.concat(chunks);
+      }
+      const request = new Request(`${secure ? 'https' : 'http'}://${host}${incoming.url}`, { method: incoming.method, headers: requestHeaders, body });
       const ip = clientIP(incoming, config.headers);
       const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, statistics, visitors: statistics?.visitors,
         rateLimit: rateLimits ? source => rateLimits.check(source) : undefined,

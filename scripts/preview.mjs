@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { handleRequest } from '../dist/worker.mjs';
+import worker from '../dist/worker.mjs';
 import { localGeoIPAssets } from './local-geoip-assets.mjs';
 let env = {};
 try { env = await localGeoIPAssets(); }
@@ -8,8 +8,10 @@ catch { console.log('Custom lookups require npm run geoip:prepare; visitor IP de
 createServer(async (incoming, outgoing) => {
   const headers = new Headers(incoming.headers);
   headers.set('CF-Connecting-IP', incoming.socket.remoteAddress || '127.0.0.1');
-  const request = new Request(`http://localhost:8787${incoming.url}`, { method: incoming.method, headers });
-  const result = await handleRequest(request, env);
+  const chunks = [];
+  if (incoming.method === 'POST') for await (const chunk of incoming) chunks.push(chunk);
+  const request = new Request(`http://localhost:8787${incoming.url}`, { method: incoming.method, headers, body: chunks.length ? Buffer.concat(chunks) : undefined });
+  const result = await worker.fetch(request, env, {});
   outgoing.writeHead(result.status, Object.fromEntries(result.headers));
   outgoing.end(Buffer.from(await result.arrayBuffer()));
 }).listen(8787, '127.0.0.1', () => console.log('Preview: http://localhost:8787'));
