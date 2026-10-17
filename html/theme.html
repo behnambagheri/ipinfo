@@ -1,11 +1,15 @@
 <script>
   (() => {
-    // Shared with bea.sh: no saved choice follows the OS; a saved light or dark choice is forced.
+    const root = document.documentElement;
     try {
+      // Shared with bea.sh: no saved choice follows the OS; a saved light or dark choice is forced.
       const saved = localStorage.getItem("bb-theme");
-      if (saved === "light" || saved === "dark") document.documentElement.dataset.theme = saved;
+      if (saved === "light" || saved === "dark") root.dataset.theme = saved;
+      // Rendered pages carry the accent chosen in the admin panel; the cached offline page reuses the last one seen.
+      if (root.dataset.product) localStorage.setItem("ipinfo-accent", root.dataset.product);
+      else if (/^(teal|cyan|indigo|violet|fuchsia)$/.test(localStorage.getItem("ipinfo-accent") || "")) root.dataset.product = localStorage.getItem("ipinfo-accent");
     } catch {
-      // Follow the OS theme when browser storage is unavailable.
+      // Follow the OS theme and the default accent when browser storage is unavailable.
     }
   })();
 </script>

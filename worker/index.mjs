@@ -9,6 +9,7 @@ import { renderUsage } from './usage.mjs';
 import { visitorEvent } from './visitors.mjs';
 import { discoveryLinks, renderLlms, openAPI, apiCatalog, robots, sitemap } from './agents.mjs';
 import { mcpResponse } from './mcp.mjs';
+import { appearanceFields } from './appearance.mjs';
 
 const fields = new Map(['ip', 'ip_decimal', 'country', 'country_iso', 'country_ir', 'city', 'region_name', 'region_code', 'postal_code', 'asn', 'asn_org', 'timezone', 'latitude', 'longitude', 'user_agent'].map(key => [`/${key.replaceAll('_', '-')}`, key]));
 const countries = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -19,6 +20,11 @@ const securityHeaders = {
 };
 function response(body, status = 200, type = 'text/plain; charset=utf-8', head = false) {
   return new Response(head ? null : body, { status, headers: { ...securityHeaders, 'Content-Type': type } });
+}
+// Only HTML pages read the accent, so API and CLI responses never wait for appearance settings.
+async function appearance(context) {
+  try { return appearanceFields(await context.accent?.()); }
+  catch { return appearanceFields(); }
 }
 function json(data, status = 200, head = false) { return response(JSON.stringify(data, null, 2) + '\n', status, 'application/json; charset=utf-8', head); }
 function number(value) { return value === undefined || value === null || value === '' ? undefined : Number.isFinite(Number(value)) ? Number(value) : undefined; }
@@ -71,7 +77,7 @@ async function diagnosticResponse(request, env = {}, context = {}) {
   if (url.pathname === '/sitemap.xml') return response(sitemap(url), 200, 'application/xml; charset=utf-8', head);
   if (['/stats', '/stats.json'].includes(url.pathname)) {
     if (!context.statistics) return json({ error: 'Statistics are not configured.' }, 503, head);
-    if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site }), 200, 'text/html; charset=utf-8', head);
+    if (url.pathname === '/stats') return response(renderStatistics({ Site: context.statistics.site, ...await appearance(context) }), 200, 'text/html; charset=utf-8', head);
     try { return json(await context.statistics.snapshot(), 200, head); }
     catch { return json({ error: 'Statistics are temporarily unavailable.' }, 503, head); }
   }
@@ -117,13 +123,13 @@ async function diagnosticResponse(request, env = {}, context = {}) {
     const error = 'IP lookup is temporarily unavailable. Please try again later.';
     if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html') && !request.headers.get('accept')?.includes('application/json')) {
       const view = templateData({ ip, ip_decimal: decimalIP(ip), error }, request, explicit, context);
-      Object.assign(view, { LookupError: error, LookupRetryURL: url.href });
+      Object.assign(view, { LookupError: error, LookupRetryURL: url.href }, await appearance(context));
       return response(render(view), 502, 'text/html; charset=utf-8', head);
     }
     return json({ error }, 502, head);
   }
   if (url.pathname === '/json' || (url.pathname === '/' && request.headers.get('accept')?.includes('application/json'))) return json(data, 200, head);
-  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) return response(render(templateData(data, request, explicit, context)), 200, 'text/html; charset=utf-8', head);
+  if (url.pathname === '/' && request.headers.get('accept')?.includes('text/html')) return response(render({ ...templateData(data, request, explicit, context), ...await appearance(context) }), 200, 'text/html; charset=utf-8', head);
   if (url.pathname === '/coordinates') return Number.isFinite(data.latitude) && Number.isFinite(data.longitude) ? response(`${data.latitude},${data.longitude}\n`, 200, undefined, head) : response('Location data is unavailable.\n', 404, undefined, head);
   const value = data[fields.get(url.pathname) || 'ip'];
   return value !== undefined && value !== null ? response(`${value}\n`, 200, undefined, head) : response('Data is unavailable for this address.\n', 404, undefined, head);
