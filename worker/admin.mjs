@@ -4,6 +4,7 @@ import { renderAdmin } from './admin-page.generated.mjs';
 import { boundedJSON } from './statistics-store.mjs';
 import { workerSite, containerSite } from './statistics.mjs';
 import { validateRateLimit } from './rate-limits.mjs';
+import { validateAppearance, accents } from './appearance.mjs';
 
 const headers = {
   'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
@@ -15,7 +16,7 @@ function reply(value, status = 200, html = false, head = false) {
     status, headers: { ...headers, 'Content-Type': html ? 'text/html; charset=utf-8' : 'application/json; charset=utf-8' },
   });
 }
-export async function adminResponse(request, env, visitors, { authorize = authorizedAdmin, now = new Date(), limits } = {}) {
+export async function adminResponse(request, env, visitors, { authorize = authorizedAdmin, now = new Date(), limits, appearance } = {}) {
   const url = new URL(request.url);
   if (url.pathname !== '/admin' && !url.pathname.startsWith('/admin/')) return null;
   const head = request.method === 'HEAD';
@@ -39,6 +40,24 @@ export async function adminResponse(request, env, visitors, { authorize = author
     }
     try { return reply(await limits.settings(site), 200, false, head); }
     catch { return reply({ error: 'Rate limits are temporarily unavailable.' }, 503, false, head); }
+  }
+  if (url.pathname === '/admin/appearance.json') {
+    if (!['GET', 'HEAD', 'PUT'].includes(request.method)) return reply({ error: 'Method not allowed' }, 405);
+    if (!appearance) return reply({ error: 'Appearance settings are unavailable.' }, 503, false, head);
+    const site = url.searchParams.get('site') || workerSite;
+    if (![workerSite, containerSite].includes(site)) return reply({ error: 'Choose a valid site.' }, 400, false, head);
+    if (request.method === 'PUT') {
+      if (request.headers.get('origin') !== url.origin || request.headers.get('sec-fetch-site') === 'cross-site') return reply({ error: 'Same-origin access is required.' }, 403);
+      let value;
+      try {
+        value = validateAppearance(await boundedJSON(request, 1024));
+        if (value.site !== site) throw new Error('Site mismatch');
+      } catch { return reply({ error: `Choose one of: ${accents.join(', ')}.` }, 400); }
+      try { return reply(await appearance.save(value)); }
+      catch { return reply({ error: 'The accent could not be saved.' }, 503); }
+    }
+    try { return reply(await appearance.settings(site), 200, false, head); }
+    catch { return reply({ error: 'Appearance settings are temporarily unavailable.' }, 503, false, head); }
   }
   if (!['GET', 'HEAD'].includes(request.method)) return reply({ error: 'Method not allowed' }, 405, false, head);
   if (url.pathname === '/admin') return reply(renderAdmin({}), 200, true, head);

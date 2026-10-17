@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-product="teal">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -20,6 +20,16 @@
         </div>
         <a class="bb-button bb-button--sm" href="/cdn-cgi/access/logout">Sign out</a>
       </div>
+      <section class="bb-card panel" aria-labelledby="appearance-title">
+        <h2 id="appearance-title">Appearance</h2>
+        <p class="small">Product accent from the Behnam Bagheri Design System, chosen separately for each site. Pages pick up a change within about a minute; the container keeps its last accent while the Worker is unreachable.</p>
+        <form id="appearance-form" class="stack">
+          <label class="field appearance-site"><span class="field-label">Site</span><select class="select" id="appearance-site" name="site"><option value="ip.bea.sh">ip.bea.sh</option><option value="ip.behnam.pro">ip.behnam.pro</option></select></label>
+          <fieldset class="accent-options" id="appearance-accents" disabled><legend class="field-label">Accent</legend><label class="accent-option"><input type="radio" name="accent" value="blue" checked /><span class="accent-swatch" data-product="blue" aria-hidden="true"></span><span>Blue</span></label><label class="accent-option"><input type="radio" name="accent" value="teal" /><span class="accent-swatch" data-product="teal" aria-hidden="true"></span><span>Teal</span></label><label class="accent-option"><input type="radio" name="accent" value="cyan" /><span class="accent-swatch" data-product="cyan" aria-hidden="true"></span><span>Cyan</span></label><label class="accent-option"><input type="radio" name="accent" value="indigo" /><span class="accent-swatch" data-product="indigo" aria-hidden="true"></span><span>Indigo</span></label><label class="accent-option"><input type="radio" name="accent" value="violet" /><span class="accent-swatch" data-product="violet" aria-hidden="true"></span><span>Violet</span></label><label class="accent-option"><input type="radio" name="accent" value="fuchsia" /><span class="accent-swatch" data-product="fuchsia" aria-hidden="true"></span><span>Fuchsia</span></label></fieldset>
+          <div class="form-actions"><button class="bb-button bb-button--primary" id="appearance-save" type="submit" disabled>Save accent</button></div>
+        </form>
+        <p id="appearance-status" role="status" aria-live="polite" class="small">Loading accent…</p>
+      </section>
       <section class="bb-card panel" aria-labelledby="rate-limit-title">
         <h2 id="rate-limit-title">Request rate limit</h2>
         <p class="small">One rule for the selected site, applied separately to each source IP. Shared router and VPN addresses share a limit. IP lookups and port checks count toward the same limit, including HEAD requests.</p>
@@ -65,6 +75,48 @@
     </main>
     {{ template "theme-toggle.html" . }}
     <script>
+      (() => {
+        const form = document.getElementById('appearance-form');
+        const site = document.getElementById('appearance-site');
+        const choices = document.getElementById('appearance-accents');
+        const save = document.getElementById('appearance-save');
+        const status = document.getElementById('appearance-status');
+        let sequence = 0;
+        function busy(value) { choices.disabled = save.disabled = value; }
+        async function request(options) {
+          const response = await fetch('/admin/appearance.json?site=' + encodeURIComponent(site.value), {
+            cache: 'no-store', credentials: 'same-origin', redirect: 'error', ...options,
+          });
+          const value = await response.json();
+          if (!response.ok) throw new Error(response.status === 401 || response.status === 403 ? 'Your session has expired. Reload this page to sign in.' : value.error || 'Appearance settings are temporarily unavailable.');
+          return value;
+        }
+        async function load() {
+          const current = ++sequence;
+          busy(true); status.textContent = 'Loading ' + site.value + ' accent…';
+          try {
+            const value = await request();
+            if (current !== sequence) return;
+            if (value.site !== site.value) throw new Error('Unexpected site in the response.');
+            const choice = form.querySelector('input[name="accent"][value="' + value.accent + '"]');
+            if (!choice) throw new Error('Unexpected accent in the response.');
+            choice.checked = true; busy(false);
+            status.textContent = value.site + ': ' + value.accent;
+          } catch (error) { if (current === sequence) status.textContent = error.message; }
+        }
+        site.addEventListener('change', () => void load());
+        form.addEventListener('submit', async event => {
+          event.preventDefault();
+          const value = { site: site.value, accent: new FormData(form).get('accent') };
+          busy(true); site.disabled = true; status.textContent = 'Saving accent…';
+          try {
+            const saved = await request({ method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+            status.textContent = 'Saved. ' + saved.site + ': ' + saved.accent;
+          } catch (error) { status.textContent = error.message; }
+          finally { site.disabled = false; busy(false); }
+        });
+        void load();
+      })();
       (() => {
         const form = document.getElementById('rate-limit-form');
         const site = document.getElementById('rate-limit-site');

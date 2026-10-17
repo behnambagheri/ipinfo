@@ -5,6 +5,7 @@ import { WorkerVisitors, visitorCollectionResponse } from './visitors-store.mjs'
 import { visitorsEnabled } from './visitors.mjs';
 import { adminResponse } from './admin.mjs';
 import { WorkerRateLimits, rateLimitCollectionResponse } from './rate-limits.mjs';
+import { WorkerAppearance, appearanceCollectionResponse } from './appearance.mjs';
 import { workerSite } from './statistics.mjs';
 import { canonicalOrigin } from './render.mjs';
 
@@ -16,8 +17,12 @@ export async function handleCloudflareRequest(request, env = {}, context = {}, c
   if (env.USAGE_DB && visitorsEnabled(env)) runtime.visitors = new WorkerVisitors(env.USAGE_DB);
   const limits = env.USAGE_DB ? new WorkerRateLimits(env.USAGE_DB) : undefined;
   if (limits) runtime.rateLimit = ip => limits.check(workerSite, ip);
-  const admin = await adminResponse(request, env, runtime.visitors, { limits });
+  const appearance = env.USAGE_DB ? new WorkerAppearance(env.USAGE_DB) : undefined;
+  if (appearance) runtime.accent = () => appearance.accent(workerSite);
+  const admin = await adminResponse(request, env, runtime.visitors, { limits, appearance });
   if (admin) return admin;
+  const accent = await appearanceCollectionResponse(request, env, appearance);
+  if (accent) return accent;
   const limited = await rateLimitCollectionResponse(request, env, limits);
   if (limited) return limited;
   const visitorReport = await visitorCollectionResponse(request, env, runtime.visitors);
