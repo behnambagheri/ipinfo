@@ -25,6 +25,8 @@ trustedHeaders: ""
 cacheSize: 0
 portLookup: false
 reverseLookup: true
+# On a mirror, the primary site's bare origin (e.g. https://ip.bea.sh) for canonical links.
+canonicalUrl: ""
 statistics:
   enabled: false
   # Private source-IP counts, retained for 30 reporting days.

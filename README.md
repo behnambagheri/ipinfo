@@ -659,7 +659,7 @@ attribution and database update/removal requirements.
 | `IPINFO_CITY_DATABASE` | `/data/geolite2/GeoLite2-City.mmdb` |
 | `IPINFO_COUNTRY_DATABASE` | `/data/geolite2/GeoLite2-Country.mmdb` |
 
-`IPINFO_CANONICAL_URL` takes a bare origin such as `https://ip.bea.sh`. When a
+`IPINFO_CANONICAL_URL` (Helm: `canonicalUrl`) takes a bare origin such as `https://ip.bea.sh`. When a
 deployment mirrors another, the page's canonical link, Open Graph URL, and
 structured data point at that origin so search engines index only one copy.
 The Worker reads the same variable. Lookup pages such as `/?ip=8.8.8.8` always

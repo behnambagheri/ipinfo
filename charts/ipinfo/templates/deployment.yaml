@@ -62,6 +62,10 @@ spec:
               value: {{ .Values.portLookup | quote }}
             - name: IPINFO_REVERSE_LOOKUP
               value: {{ .Values.reverseLookup | quote }}
+            {{- with .Values.canonicalUrl }}
+            - name: IPINFO_CANONICAL_URL
+              value: {{ . | quote }}
+            {{- end }}
             - name: IPINFO_DATABASE_UPDATE_CONFIG
               value: /etc/ipinfo/updates.json
             - name: IPINFO_DATABASE_UPDATE_DIR
