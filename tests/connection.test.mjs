@@ -70,7 +70,7 @@ test('Show my IP stays hidden during a visitor family selection without a connec
   const browser = page('2606:4700:4700::1111', '/?ip=2606:4700:4700::1111&family=6', () => { requests++; });
   assert.equal(requests, 0);
   assert.equal(browser.elements['show-my-ip'].classes.has('hidden'), true);
-  assert.equal(browser.elements['family-controls'].classes.has('flex'), true);
+  assert.equal(browser.elements['family-controls'].classes.has('hidden'), false);
 });
 test('an unavailable or invalid connection response does not reveal Show my IP', async () => {
   for (const fetcher of [async () => { throw new Error('Offline'); }, async () => new Response('Unavailable', { status: 503 }), async () => new Response('Not an IP')]) {

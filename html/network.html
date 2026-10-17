@@ -47,13 +47,12 @@
     buttons.forEach((button) => {
       const active = button.dataset.ipFamily === activeFamily;
       button.setAttribute("aria-pressed", String(active));
-      button.classList.toggle("btn-active", active);
     });
     if (activeFamily && activeFamily !== "auto") {
       document.getElementById("ip-title").textContent = `Your IPv${activeFamily} address`;
       status.textContent = `IPv${activeFamily} selected. Select Auto to return to your current connection.`;
     }
-    controls.classList.replace("hidden", "flex");
+    controls.classList.toggle("hidden", false);
 
     let pending;
     buttons.forEach((button) => button.addEventListener("click", async () => {

@@ -5,7 +5,6 @@ RUN apk add --no-cache curl
 COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 COPY html/ ./html/
-COPY ui/ ./ui/
 COPY public/ ./public/
 COPY worker/ ./worker/
 COPY server/ ./server/

@@ -31,7 +31,7 @@ test('Docker adapter and Worker have identical explicit lookup schema, fields, a
     delete local.database_release; delete worker.database_release;
     assert.deepEqual(local, worker);
   }
-  for (const route of ['/ip', '/ip-decimal', '/country', '/country-iso', '/country-ir', '/city', '/region-name', '/region-code', '/postal-code', '/asn', '/asn-org', '/timezone', '/latitude', '/longitude', '/coordinates', '/user-agent', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/offline.html']) {
+  for (const route of ['/ip', '/ip-decimal', '/country', '/country-iso', '/country-ir', '/city', '/region-name', '/region-code', '/postal-code', '/asn', '/asn-org', '/timezone', '/latitude', '/longitude', '/coordinates', '/user-agent', '/manifest.webmanifest', '/sw.js', '/favicon.ico', '/offline.html', '/ds/v1/tokens.css', '/ds/v1/base.css', '/ds/v1/components.css', '/ds/v1/fonts/space-grotesk/SpaceGrotesk-latin.woff2', '/styles.css', '/brand/bb-mark.svg']) {
     const path = `${route}?ip=81.2.69.160`;
     const local = await fetch(origin + path, { headers: { 'User-Agent': 'parity' } });
     const worker = await handleRequest(new Request('https://ip.example' + path, { headers: { 'User-Agent': 'parity' } }), env);

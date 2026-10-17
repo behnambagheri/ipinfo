@@ -8,7 +8,7 @@ import { validateRateLimit } from './rate-limits.mjs';
 const headers = {
   'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer', 'X-Robots-Tag': 'noindex, nofollow, noarchive',
-  'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+  'Content-Security-Policy': "default-src 'none'; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
 };
 function reply(value, status = 200, html = false, head = false) {
   return new Response(head ? null : html ? value : JSON.stringify(value) + '\n', {

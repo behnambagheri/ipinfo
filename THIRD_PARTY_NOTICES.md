@@ -8,6 +8,9 @@ GeoLite2 data is created by MaxMind and is subject to the GeoLite End User Licen
 Agreement (https://www.maxmind.com/en/geolite/eula), which incorporates CC BY-SA 4.0.
 See the README for attribution and update requirements.
 OpenStreetMap embeds include their own map attribution.
+The vendored Behnam Bagheri Design System in public/ds/v1/ bundles the Space Grotesk
+and Vazirmatn fonts under the SIL Open Font License 1.1; each license is served
+next to its font in public/ds/v1/fonts/.
 
 The original page templates were adapted from echoip. Its license is retained
 for that historical source attribution; echoip is not downloaded, built, or

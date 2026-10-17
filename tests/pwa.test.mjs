@@ -38,7 +38,9 @@ test('PWA assets are available without visitor metadata, with correct binary byt
   assert.match(html, /rel="icon" href="\/favicon.ico"/);
   assert.match(html, /rel="icon" href="\/brand\/ipinfo.svg"/);
   const header = html.split('<header')[1].split('</header>')[0];
-  assert.ok(!header.includes('<img'));
+  // The header carries only the shared design-system brand mark, never the app icon.
+  assert.match(header, /<img class="bb-brand-mark" src="\/brand\/bb-mark.svg"/);
+  assert.ok(!header.includes('/brand/ipinfo.svg'));
   assert.ok(!header.includes('data-install-app'));
   const footer = html.split('<footer')[1].split('</footer>')[0];
   assert.match(footer, /data-install-app/);
