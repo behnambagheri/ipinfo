@@ -29,10 +29,17 @@ sizes.forEach((size, index) => {
 await writeFile('public/favicon.ico', Buffer.concat([header, ...images]));
 
 let offline = await readFile('html/offline.html', 'utf8');
-for (const name of ['theme.html', 'styles.html']) offline = offline.replace(`{{ template "${name}" . }}`, await readFile(`html/${name}`, 'utf8'));
+offline = offline.replace('{{ template "theme.html" . }}', await readFile('html/theme.html', 'utf8'));
+// The service worker caches only offline.html, so it carries the stylesheets inline; fonts fall back when offline.
+let offlineStyles = '';
+for (const [, path] of (await readFile('html/styles.html', 'utf8')).matchAll(/href="\/([^"?]+)/g)) {
+  const css = await readFile(`public/${path}`, 'utf8');
+  offlineStyles += css.replace(/url\('(?!\/)/g, `url('/${path.slice(0, path.lastIndexOf('/') + 1)}`);
+}
+offline = offline.replace('{{ template "styles.html" . }}', `<style>\n${offlineStyles}</style>`);
 await writeFile('public/offline.html', offline);
 
-const types = { svg: 'image/svg+xml', png: 'image/png', ico: 'image/x-icon', webmanifest: 'application/manifest+json', js: 'text/javascript; charset=utf-8', html: 'text/html; charset=utf-8' };
+const types = { svg: 'image/svg+xml', png: 'image/png', ico: 'image/x-icon', webmanifest: 'application/manifest+json', js: 'text/javascript; charset=utf-8', html: 'text/html; charset=utf-8', css: 'text/css; charset=utf-8', woff2: 'font/woff2', txt: 'text/plain; charset=utf-8' };
 const assets = [];
 async function collect(directory) {
   for (const entry of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {

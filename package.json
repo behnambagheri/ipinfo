@@ -12,11 +12,7 @@
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
-    "@tailwindcss/postcss": "4.3.3",
-    "daisyui": "5.7.47",
     "esbuild": "0.28.2",
-    "postcss": "8.5.29",
-    "tailwindcss": "4.3.3",
     "wrangler": "4.151.0"
   },
   "version": "1.2.2",

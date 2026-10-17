@@ -17,13 +17,18 @@ curl 'ip.bea.sh/json?ip=8.8.8.8'        # look up any IPv4 or IPv6 address
 curl ip.bea.sh/asn-org                  # your ISP / network organization
 ```
 
-An IP and network diagnostic service for [bea.sh](https://bea.sh), with a
-responsive daisyUI 5 / Tailwind CSS 4 interface. The blue accents,
-background grid, and system/light/dark themes follow [bea.sh](https://bea.sh).
+An IP and network diagnostic service for [bea.sh](https://bea.sh), styled with
+the Behnam Bagheri Design System shared by all of Behnam's sites (teal product
+accent). The theme follows the OS until a visitor picks light or dark; the
+choice is stored under the same `bb-theme` key as bea.sh.
 
 The HTML, query builder, copy actions, usage dialog, and OpenStreetMap view are
-shared by the Cloudflare Worker and self-hosted container. CSS is compiled and
-embedded; the browser does not download a CSS framework.
+shared by the Cloudflare Worker and self-hosted container. Both serve a vendored
+copy of the design system from `/ds/v1/` (tokens, base, components, and fonts),
+followed by the page stylesheet `/styles.css`, so the Iran mirror works when
+bea.sh is unreachable. `public/ds/VERSION.txt` records the source commit; run
+`scripts/sync-ds.sh [ref]` to update it and never edit the vendored files here.
+Stylesheet links carry a content-hash `?v=` query generated at build time.
 
 Auto keeps the original behavior: the address used to connect to this service.
 The optional IPv4 and IPv6 buttons leave the page unchanged when Auto already
@@ -765,8 +770,9 @@ The container uses mmdb-lib (MIT) for local reads. Historical template
 attribution to echoip (BSD 3-Clause) is retained in THIRD_PARTY_NOTICES.md.
 Both use GeoLite2/MaxMind and the database mirror. The Worker uses Cloudflare metadata
 and owned GeoLite2 databases for explicit public-IP lookup.
-GeoLite2 data is created by [MaxMind](https://www.maxmind.com). Both interfaces use daisyUI,
-Tailwind CSS, and [OpenStreetMap](https://www.openstreetmap.org/copyright).
+GeoLite2 data is created by [MaxMind](https://www.maxmind.com). Both interfaces use the Behnam Bagheri
+Design System (Space Grotesk and Vazirmatn fonts, SIL OFL 1.1) and
+[OpenStreetMap](https://www.openstreetmap.org/copyright).
 
 ## License
 

@@ -1,9 +1,12 @@
 import { readFile, writeFile } from "node:fs/promises";
-import postcss from "postcss";
-import tailwindcss from "@tailwindcss/postcss";
+import { createHash } from "node:crypto";
 
-const source = await readFile("ui/styles.css", "utf8");
-const result = await postcss([tailwindcss({ optimize: true })]).process(source, {
-  from: "ui/styles.css",
-});
-await writeFile("html/styles.html", `<style>\n${result.css}\n</style>\n`);
+// Every page links the vendored design system, then the IPinfo page stylesheet, in this order.
+// Each ?v= is a content hash, so browsers refetch a stylesheet only when that file changes.
+const stylesheets = ["ds/v1/tokens.css", "ds/v1/base.css", "ds/v1/components.css", "styles.css"];
+const links = [];
+for (const path of stylesheets) {
+  const version = createHash("sha256").update(await readFile(`public/${path}`)).digest("hex").slice(0, 10);
+  links.push(`<link rel="stylesheet" href="/${path}?v=${version}" />`);
+}
+await writeFile("html/styles.html", `${links.join("\n")}\n`);

@@ -1,0 +1,39 @@
+<script>
+  (() => {
+    "use strict";
+    const THEME_KEY = "bb-theme";
+    const root = document.documentElement;
+    const button = document.getElementById("theme-toggle");
+    const prefersDark = matchMedia("(prefers-color-scheme: dark)");
+    function savedTheme() {
+      try {
+        const theme = localStorage.getItem(THEME_KEY);
+        return theme === "light" || theme === "dark" ? theme : null;
+      } catch {
+        return null;
+      }
+    }
+    let chosen = savedTheme();
+    function applyTheme() {
+      const theme = chosen || (prefersDark.matches ? "dark" : "light");
+      if (chosen) root.dataset.theme = chosen;
+      else delete root.dataset.theme;
+      // The icon shows the theme on screen; clicking switches to the other one.
+      const label = `Theme: ${theme}. Switch to ${theme === "dark" ? "light" : "dark"}`;
+      button.dataset.current = theme;
+      button.setAttribute("aria-label", label);
+      button.title = label;
+    }
+    button.addEventListener("click", () => {
+      chosen = button.dataset.current === "dark" ? "light" : "dark";
+      try {
+        localStorage.setItem(THEME_KEY, chosen);
+      } catch {
+        // The theme still switches for this page when storage is unavailable.
+      }
+      applyTheme();
+    });
+    prefersDark.addEventListener("change", applyTheme);
+    applyTheme();
+  })();
+</script>

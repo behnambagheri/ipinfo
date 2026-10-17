@@ -1,37 +1,6 @@
 <script>
   (() => {
     "use strict";
-    const systemTheme = matchMedia("(prefers-color-scheme: dark)");
-    const themeButtons = document.querySelectorAll("button[data-theme-preference]");
-    let themePreference = document.documentElement.dataset.themePreference || "system";
-
-    function applyTheme() {
-      const dark = themePreference === "dark" || (themePreference === "system" && systemTheme.matches);
-      document.documentElement.dataset.theme = dark ? "bea-dark" : "bea";
-      document.documentElement.dataset.themePreference = themePreference;
-      themeButtons.forEach((button) => {
-        const selected = button.dataset.themePreference === themePreference;
-        button.setAttribute("aria-pressed", String(selected));
-        button.classList.toggle("btn-active", selected);
-      });
-    }
-
-    themeButtons.forEach((button) => {
-      button.addEventListener("click", () => {
-        themePreference = button.dataset.themePreference;
-        try {
-          localStorage.setItem("ipinfo-theme", themePreference);
-        } catch {
-          // The theme still works for this page when storage is unavailable.
-        }
-        applyTheme();
-      });
-    });
-    systemTheme.addEventListener("change", () => {
-      if (themePreference === "system") applyTheme();
-    });
-    applyTheme();
-
     const mapButton = document.getElementById("toggle-map");
     const mapSection = document.getElementById("map-section");
     mapButton.addEventListener("click", () => {

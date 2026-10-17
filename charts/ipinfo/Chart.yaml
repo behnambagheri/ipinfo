@@ -1,6 +1,6 @@
 apiVersion: v2
 name: ipinfo
-description: IP and network diagnostics with bundled GeoLite2 databases and a daisyUI interface
+description: IP and network diagnostics with bundled GeoLite2 databases and the Behnam Bagheri Design System interface
 type: application
 version: 2.1.0
 appVersion: "1.0.0"

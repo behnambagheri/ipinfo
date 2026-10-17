@@ -1,22 +1,24 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-product="teal">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#0f766e" />
     <title>Offline — IPinfo</title>
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/brand/ipinfo.svg" type="image/svg+xml" sizes="any" />
     {{ template "theme.html" . }}
     {{ template "styles.html" . }}
   </head>
-  <body class="flex min-h-screen items-center justify-center bg-base-200 p-6 text-base-content">
-    <main class="w-full max-w-md rounded-box border border-base-300 bg-base-100 p-8 text-center shadow-sm">
-      <img src="/brand/ipinfo.svg" width="64" height="64" alt="" class="mx-auto mb-6 size-16" />
-      <p class="mb-2 text-sm font-medium text-primary">IPinfo by bea.sh</p>
-      <h1 class="text-2xl font-semibold">You’re offline</h1>
-      <p class="mt-4 text-sm leading-relaxed text-base-content/70">Connect to the internet to check your current IP address, network, and location.</p>
-      <a href="/" class="btn mt-6 w-full">Try again</a>
+  <body>
+    <main class="offline">
+      <div class="bb-card panel">
+        <img src="/brand/ipinfo.svg" width="64" height="64" alt="" class="app-icon" />
+        <p class="bb-eyebrow">IPinfo by bea.sh</p>
+        <h1 class="page-title">You’re offline</h1>
+        <p>Connect to the internet to check your current IP address, network, and location.</p>
+        <a href="/" class="bb-button bb-button--primary bb-button--block">Try again</a>
+      </div>
     </main>
   </body>
 </html>

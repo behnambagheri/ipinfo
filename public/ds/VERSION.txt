@@ -1,0 +1,5 @@
+Behnam Bagheri Design System v1
+Source: https://github.com/behnambagheri/bea.sh/tree/382c61d872313d8b742e1ec592c8835b9e5dc811/ds/v1
+Commit: 382c61d872313d8b742e1ec592c8835b9e5dc811
+Brand mark: favicon.svg from the same commit (public/brand/bb-mark.svg)
+Do not edit these files here; change them upstream and run scripts/sync-ds.sh.

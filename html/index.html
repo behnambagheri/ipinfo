@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-product="teal">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,7 +16,7 @@
     <meta property="og:image:alt" content="IPinfo logo" />
     <meta name="twitter:card" content="summary" />
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"IPinfo","alternateName":"IPinfo — bea.sh","url":"{{ .Canonical }}","description":"Shows your public IPv4 or IPv6 address, ISP/ASN, and approximate location, and looks up any IP address through a web interface, JSON API, curl, and MCP.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"bea.sh","url":"https://bea.sh"},"sameAs":["https://github.com/behnambagheri/ipinfo"]}</script>
-    <meta name="theme-color" content="#2563eb" />
+    <meta name="theme-color" content="#0f766e" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/brand/ipinfo.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
@@ -28,226 +28,187 @@
     {{ template "theme.html" . }}
     {{ template "styles.html" . }}
   </head>
-  <body class="min-h-screen bg-base-200 text-base-content">
-    <header class="mx-auto mt-3 max-w-6xl rounded-box border border-base-300 bg-base-100/90 shadow-sm">
-      <nav aria-label="Main navigation" class="navbar mx-auto max-w-6xl flex-wrap gap-2 px-4 py-4 sm:gap-3 sm:px-6">
-        <div class="navbar-start w-auto grow gap-3">
-          <a href="/" class="flex shrink-0 items-center gap-2" aria-label="IPinfo home">
-            <span class="text-lg font-semibold tracking-tight">IPinfo</span>
-          </a>
-          <a href="https://bea.sh" class="link link-hover hidden border-l border-base-300 pl-4 text-sm text-base-content/60 sm:block">by bea.sh <span aria-hidden="true">↗</span></a>
+  <body>
+    {{ template "header.html" . }}
+    <main class="bb-container page">
+      <section aria-labelledby="ip-title" class="bb-card panel hero">
+        <div id="family-controls" class="hidden stack">
+          <div class="row">
+            <span class="muted small">Your connection</span>
+            <div role="group" aria-label="IP address version" class="segmented">
+              <button type="button" data-ip-family="auto" aria-pressed="true">Auto</button>
+              <button type="button" data-ip-family="4" aria-pressed="false">IPv4</button>
+              <button type="button" data-ip-family="6" aria-pressed="false">IPv6</button>
+            </div>
+          </div>
+          <p id="family-status" role="status" class="muted fine">Auto uses your current connection. IPv4/IPv6 detection uses ipify.</p>
         </div>
-        <div class="navbar-end ml-auto w-auto gap-1 sm:gap-2">
-          <a href="https://github.com/behnambagheri/ipinfo" target="_blank" rel="noopener noreferrer" aria-label="GitHub repository" title="GitHub repository" class="btn btn-ghost btn-sm btn-square sm:w-auto sm:px-3">
-            <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .75a11.25 11.25 0 0 0-3.56 21.92c.56.1.77-.24.77-.54v-2.1c-3.13.68-3.79-1.33-3.79-1.33-.51-1.3-1.25-1.65-1.25-1.65-1.02-.7.08-.69.08-.69 1.13.08 1.73 1.16 1.73 1.16 1 1.72 2.63 1.22 3.27.93.1-.72.4-1.22.72-1.5-2.5-.28-5.13-1.25-5.13-5.56 0-1.23.44-2.23 1.16-3.02-.12-.28-.5-1.43.11-2.98 0 0 .95-.3 3.1 1.15a10.8 10.8 0 0 1 5.63 0c2.15-1.45 3.09-1.15 3.09-1.15.61 1.55.23 2.7.11 2.98.73.79 1.16 1.79 1.16 3.02 0 4.32-2.63 5.28-5.14 5.56.4.35.76 1.03.76 2.09v3.09c0 .3.2.65.77.54A11.25 11.25 0 0 0 12 .75Z" /></svg>
-            <span class="hidden sm:inline">GitHub</span>
-          </a>
-          <a href="https://www.linkedin.com/in/behnambaqeri/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" title="LinkedIn profile" class="btn btn-ghost btn-sm btn-square sm:w-auto sm:px-3">
-            <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 2H3.55C2.69 2 2 2.68 2 3.52v16.96C2 21.32 2.69 22 3.55 22h16.9c.86 0 1.55-.68 1.55-1.52V3.52C22 2.68 21.31 2 20.45 2ZM7.93 18.75H4.98V9.2h2.95v9.55ZM6.46 7.9a1.71 1.71 0 1 1 0-3.42 1.71 1.71 0 0 1 0 3.42Zm12.29 10.85H15.8v-4.64c0-1.11-.02-2.54-1.55-2.54-1.56 0-1.8 1.21-1.8 2.46v4.72H9.5V9.2h2.83v1.3h.04c.39-.74 1.36-1.52 2.79-1.52 2.98 0 3.59 1.96 3.59 4.5v5.27Z" /></svg>
-            <span class="hidden sm:inline">LinkedIn</span>
-          </a>
-          <div role="group" aria-label="Color theme" class="flex gap-1 rounded-field border border-base-300 p-1">
-            <button type="button" data-theme-preference="system" aria-label="Use system theme" title="Use system theme" aria-pressed="true" class="btn btn-ghost btn-sm btn-square">
-              <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2" /><path d="M8 21h8M12 17v4" /></svg>
-            </button>
-            <button type="button" data-theme-preference="light" aria-label="Use light theme" title="Use light theme" aria-pressed="false" class="btn btn-ghost btn-sm btn-square">
-              <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42" /></svg>
-            </button>
-            <button type="button" data-theme-preference="dark" aria-label="Use dark theme" title="Use dark theme" aria-pressed="false" class="btn btn-ghost btn-sm btn-square">
-              <svg aria-hidden="true" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 13.1A8.5 8.5 0 0 1 10.9 3.5 8.5 8.5 0 1 0 20.5 13.1Z" /></svg>
-            </button>
+        <div class="hero-main">
+          <div class="stack">
+            <h1 id="ip-title" class="bb-eyebrow">{{ if .ExplicitLookup }}IP address lookup{{ else }}Your public IP address{{ end }}</h1>
+            <p id="ip-address" data-ip="{{ .IP }}" dir="ltr" class="ip-address">{{ .IP }}</p>
+          </div>
+          <div class="row">
+            {{ if .ExplicitLookup }}<a id="show-my-ip" href="/" class="bb-button bb-button--secondary hidden"><span aria-hidden="true">←</span> Show my IP</a>{{ end }}
+            <button id="copy-ip" type="button" class="bb-button bb-button--primary">Copy IP address</button>
+            <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}" class="bb-button bb-button--ghost">View JSON <span aria-hidden="true">↗</span></a>
           </div>
         </div>
-      </nav>
-    </header>
-    <main class="mx-auto max-w-6xl space-y-8 px-4 py-6 sm:px-6 sm:py-8">
-      <section aria-labelledby="ip-title" class="card card-border bg-base-100 shadow-sm">
-        <div class="card-body gap-5 p-5 sm:p-8">
-          <div id="family-controls" class="hidden flex-col gap-2">
-            <div class="flex flex-wrap items-center gap-3">
-              <span class="text-sm text-base-content/60">Your connection</span>
-              <div role="group" aria-label="IP address version" class="join">
-                <button type="button" data-ip-family="auto" aria-pressed="true" class="btn btn-sm join-item">Auto</button>
-                <button type="button" data-ip-family="4" aria-pressed="false" class="btn btn-sm join-item">IPv4</button>
-                <button type="button" data-ip-family="6" aria-pressed="false" class="btn btn-sm join-item">IPv6</button>
-              </div>
-            </div>
-            <p id="family-status" role="status" class="text-xs leading-relaxed text-base-content/60">Auto uses your current connection. IPv4/IPv6 detection uses ipify.</p>
+        <p id="copy-status" role="status" class="status-line"></p>
+        <dl class="ip-facts">
+          <div>
+            <dt>Country</dt>
+            <dd><span class="fact-value">{{ if .Country }}{{ .Country }}{{ else }}Unavailable{{ end }}</span><span class="fact-note">{{ if .CountryISO }}Country code: {{ .CountryISO }}{{ else }}No country data for this address{{ end }}</span></dd>
           </div>
-          <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div class="min-w-0 flex-1">
-              <h1 id="ip-title" class="text-sm text-base-content/60">{{ if .ExplicitLookup }}IP address lookup{{ else }}Your public IP address{{ end }}</h1>
-              <p id="ip-address" data-ip="{{ .IP }}" dir="ltr" class="mt-2 max-w-full wrap-anywhere font-mono text-3xl font-semibold tracking-tight sm:text-5xl">{{ .IP }}</p>
-            </div>
-            <div class="flex shrink-0 flex-wrap items-center gap-3">
-              {{ if .ExplicitLookup }}<a id="show-my-ip" href="/" class="btn btn-secondary hidden"><span aria-hidden="true">←</span> Show my IP</a>{{ end }}
-              <button id="copy-ip" type="button" class="btn btn-primary">Copy IP address</button>
-              <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}" class="btn btn-ghost">View JSON <span aria-hidden="true">↗</span></a>
-            </div>
+          <div>
+            <dt>City</dt>
+            <dd><span class="fact-value">{{ if .City }}{{ .City }}{{ else }}Unavailable{{ end }}</span><span class="fact-note">{{ if .RegionName }}{{ .RegionName }}{{ else }}Approximate IP-based location{{ end }}</span></dd>
           </div>
-          <span id="copy-status" role="status" class="min-h-5 text-sm text-base-content/60"></span>
-          <div class="stats stats-vertical w-full border-t border-base-300 pt-3 sm:stats-horizontal">
-            <div class="stat px-0 sm:pr-6">
-              <div class="stat-title">Country</div>
-              <div class="stat-value mt-1 break-words whitespace-normal text-xl">{{ if .Country }}{{ .Country }}{{ else }}Unavailable{{ end }}</div>
-              <div class="stat-desc">{{ if .CountryISO }}Country code: {{ .CountryISO }}{{ else }}No country data for this address{{ end }}</div>
-            </div>
-            <div class="stat px-0 sm:px-6">
-              <div class="stat-title">City</div>
-              <div class="stat-value mt-1 break-words whitespace-normal text-xl">{{ if .City }}{{ .City }}{{ else }}Unavailable{{ end }}</div>
-              <div class="stat-desc">{{ if .RegionName }}{{ .RegionName }}{{ else }}Approximate IP-based location{{ end }}</div>
-            </div>
-            <div class="stat min-w-0 px-0 sm:pl-6">
-              <div class="stat-title">Network</div>
-              <div class="stat-value mt-1 break-words whitespace-normal text-xl">{{ if .ASN }}{{ .ASN }}{{ else }}Unavailable{{ end }}</div>
-              <div class="stat-desc max-w-72 whitespace-normal break-words">{{ if .ASNOrg }}{{ .ASNOrg }}{{ else }}No ASN data for this address{{ end }}</div>
-            </div>
+          <div>
+            <dt>Network</dt>
+            <dd><span class="fact-value">{{ if .ASN }}{{ .ASN }}{{ else }}Unavailable{{ end }}</span><span class="fact-note">{{ if .ASNOrg }}{{ .ASNOrg }}{{ else }}No ASN data for this address{{ end }}</span></dd>
           </div>
-        </div>
+        </dl>
       </section>
       {{ if not .NoCustomIP }}
-      <form action="/" method="get" class="flex flex-col gap-3 sm:flex-row sm:items-end">
-        <div class="flex-1">
-          <label for="lookup-ip" class="mb-2 block text-sm font-medium">Look up another IP address</label>
-          <input id="lookup-ip" name="ip" type="text" class="input w-full bg-base-100 font-mono" placeholder="IPv4 or IPv6 address" required autocomplete="off" spellcheck="false" />
+      <form action="/" method="get" class="lookup">
+        <div class="field">
+          <label for="lookup-ip" class="field-label">Look up another IP address</label>
+          <input id="lookup-ip" name="ip" type="text" class="input mono" placeholder="IPv4 or IPv6 address" required autocomplete="off" spellcheck="false" />
         </div>
-        <button type="submit" class="btn">Look up address <span aria-hidden="true">→</span></button>
+        <button type="submit" class="bb-button bb-button--secondary">Look up address <span aria-hidden="true">→</span></button>
       </form>
       {{ end }}
-      <div class="grid items-start gap-6 lg:grid-cols-2">
-        <div class="min-w-0 space-y-6">
-        <section aria-labelledby="details-title" class="card card-border min-w-0 bg-base-100">
-          <div class="card-body gap-4 p-5 sm:p-7">
-            <h2 id="details-title" class="card-title">Connection details</h2>
-            <p class="text-sm text-base-content/60">A closer look at this address.</p>
-            <div class="overflow-x-auto">
-              <table class="table table-sm">
-                <caption class="sr-only">IP address and network details</caption>
-                <tbody class="[&_td]:break-all [&_td]:font-mono [&_th]:font-medium">
-                  <tr><th scope="row">IP address</th><td>{{ .IP }}</td></tr>
-                  <tr><th scope="row">Decimal address</th><td>{{ .IPDecimal }}</td></tr>
-                  {{ if .Hostname }}<tr><th scope="row">Hostname</th><td>{{ .Hostname }}</td></tr>{{ end }}
-                  {{ if .CountryISO }}<tr><th scope="row">Country code</th><td>{{ .CountryISO }}</td></tr>{{ end }}
-                  {{ if .CountryIR }}<tr><th scope="row">Iran</th><td>{{ .CountryIR }}</td></tr>{{ end }}
-                  {{ if .RegionName }}<tr><th scope="row">Region</th><td>{{ .RegionName }}</td></tr>{{ end }}
-                  {{ if .RegionCode }}<tr><th scope="row">Region code</th><td>{{ .RegionCode }}</td></tr>{{ end }}
-                  {{ if .MetroCode }}<tr><th scope="row">Metro code</th><td>{{ .MetroCode }}</td></tr>{{ end }}
-                  {{ if .PostalCode }}<tr><th scope="row">Postal code</th><td>{{ .PostalCode }}</td></tr>{{ end }}
-                  {{ if .ASNOrg }}<tr><th scope="row">Network provider</th><td>{{ .ASNOrg }}</td></tr>{{ end }}
-                  {{ if .Timezone }}<tr><th scope="row">Time zone</th><td>{{ .Timezone }}</td></tr>{{ end }}
-                  {{ if or .Latitude .Longitude }}<tr><th scope="row">Coordinates</th><td>{{ .Latitude }}, {{ .Longitude }}</td></tr>{{ end }}
-                  {{ if .UserAgent }}<tr><th scope="row">User agent</th><td>{{ .UserAgent.RawValue }}</td></tr>{{ end }}
-                </tbody>
-              </table>
-            </div>
-            <div class="card-actions">
-              <button id="toggle-map" type="button" aria-expanded="false" aria-controls="map-section" class="btn btn-sm">Show on map</button>
-            </div>
+      <div class="columns">
+        <div class="stack">
+        <section aria-labelledby="details-title" class="bb-card panel">
+          <h2 id="details-title">Connection details</h2>
+          <p class="small">A closer look at this address.</p>
+          <div class="table-scroll">
+            <table class="data-table data-table--details">
+              <caption class="bb-visually-hidden">IP address and network details</caption>
+              <tbody>
+                <tr><th scope="row">IP address</th><td>{{ .IP }}</td></tr>
+                <tr><th scope="row">Decimal address</th><td>{{ .IPDecimal }}</td></tr>
+                {{ if .Hostname }}<tr><th scope="row">Hostname</th><td>{{ .Hostname }}</td></tr>{{ end }}
+                {{ if .CountryISO }}<tr><th scope="row">Country code</th><td>{{ .CountryISO }}</td></tr>{{ end }}
+                {{ if .CountryIR }}<tr><th scope="row">Iran</th><td>{{ .CountryIR }}</td></tr>{{ end }}
+                {{ if .RegionName }}<tr><th scope="row">Region</th><td>{{ .RegionName }}</td></tr>{{ end }}
+                {{ if .RegionCode }}<tr><th scope="row">Region code</th><td>{{ .RegionCode }}</td></tr>{{ end }}
+                {{ if .MetroCode }}<tr><th scope="row">Metro code</th><td>{{ .MetroCode }}</td></tr>{{ end }}
+                {{ if .PostalCode }}<tr><th scope="row">Postal code</th><td>{{ .PostalCode }}</td></tr>{{ end }}
+                {{ if .ASNOrg }}<tr><th scope="row">Network provider</th><td>{{ .ASNOrg }}</td></tr>{{ end }}
+                {{ if .Timezone }}<tr><th scope="row">Time zone</th><td>{{ .Timezone }}</td></tr>{{ end }}
+                {{ if or .Latitude .Longitude }}<tr><th scope="row">Coordinates</th><td>{{ .Latitude }}, {{ .Longitude }}</td></tr>{{ end }}
+                {{ if .UserAgent }}<tr><th scope="row">User agent</th><td>{{ .UserAgent.RawValue }}</td></tr>{{ end }}
+              </tbody>
+            </table>
+          </div>
+          <div class="row">
+            <button id="toggle-map" type="button" aria-expanded="false" aria-controls="map-section" class="bb-button bb-button--sm">Show on map</button>
           </div>
         </section>
-        <section id="map-section" aria-labelledby="map-title" class="card card-border min-w-0 bg-base-100 hidden">
-          <div class="card-body gap-4 p-5 sm:p-7">
-            <h2 id="map-title" class="card-title">Map</h2>
-            {{ if or .Latitude .Longitude }}
-            <p class="text-sm text-base-content/60">Approximate location of <span class="break-all font-mono">{{ .IP }}</span></p>
-            <iframe title="Approximate IP location on OpenStreetMap" class="h-72 w-full rounded-box border border-base-300 sm:h-80" loading="lazy" referrerpolicy="no-referrer" data-src="https://www.openstreetmap.org/export/embed.html?bbox={{ .BoxLonLeft }}%2C{{ .BoxLatBottom }}%2C{{ .BoxLonRight }}%2C{{ .BoxLatTop }}&amp;layer=mapnik&amp;marker={{ .Latitude }}%2C{{ .Longitude }}"></iframe>
-            <div class="card-actions">
-              <a href="https://www.openstreetmap.org/?mlat={{ .Latitude }}&amp;mlon={{ .Longitude }}#map=12/{{ .Latitude }}/{{ .Longitude }}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost btn-sm">Open in OpenStreetMap <span aria-hidden="true">↗</span></a>
-            </div>
-            {{ else }}
-            <div role="status" class="rounded-box border border-base-300 bg-base-200 p-5">
-              <p class="font-medium">Location unavailable for this IP address</p>
-              <p class="mt-2 text-sm leading-relaxed text-base-content/60">The location data source does not provide coordinates for this address. Look up another IP address to view its approximate location on the map.</p>
-            </div>
-            {{ end }}
-            <p class="text-xs leading-relaxed text-base-content/60">IP geolocation is approximate and may reflect your VPN, proxy, or internet provider.</p>
+        <section id="map-section" aria-labelledby="map-title" class="bb-card panel hidden">
+          <h2 id="map-title">Map</h2>
+          {{ if or .Latitude .Longitude }}
+          <p class="small">Approximate location of <span class="mono" dir="ltr">{{ .IP }}</span></p>
+          <iframe title="Approximate IP location on OpenStreetMap" class="map-frame" loading="lazy" referrerpolicy="no-referrer" data-src="https://www.openstreetmap.org/export/embed.html?bbox={{ .BoxLonLeft }}%2C{{ .BoxLatBottom }}%2C{{ .BoxLonRight }}%2C{{ .BoxLatTop }}&amp;layer=mapnik&amp;marker={{ .Latitude }}%2C{{ .Longitude }}"></iframe>
+          <div class="row">
+            <a href="https://www.openstreetmap.org/?mlat={{ .Latitude }}&amp;mlon={{ .Longitude }}#map=12/{{ .Latitude }}/{{ .Longitude }}" target="_blank" rel="noopener noreferrer" class="bb-button bb-button--ghost bb-button--sm">Open in OpenStreetMap <span aria-hidden="true">↗</span></a>
           </div>
+          {{ else }}
+          <div role="status" class="notice">
+            <strong>Location unavailable for this IP address</strong>
+            <p class="small">The location data source does not provide coordinates for this address. Look up another IP address to view its approximate location on the map.</p>
+          </div>
+          {{ end }}
+          <p class="fine">IP geolocation is approximate and may reflect your VPN, proxy, or internet provider.</p>
         </section>
         </div>
-        <section aria-labelledby="api-title" class="card card-border min-w-0 bg-base-100">
-          <div class="card-body gap-5 p-5 sm:p-7">
-            <div>
-              <h2 id="api-title" class="card-title">Make it a query.</h2>
-              <p class="mt-2 text-sm text-base-content/60">Choose what you need. Copy the command or try it here.</p>
-            </div>
-            <form id="query-form" class="space-y-4">
-              <div class="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label for="endpoint" class="mb-2 block text-sm font-medium">Response</label>
-                  <select id="endpoint" class="select w-full">
-                    <option value="ip">IP address</option>
-                    <option value="json">Full JSON</option>
-                    <option value="country">Country</option>
-                    <option value="country-iso">Country code</option>
-                    <option value="city">City</option>
-                    <option value="coordinates">Coordinates</option>
-                    <option value="asn">ASN</option>
-                    <option value="asn-org">Network provider</option>
-                    {{ if .Port }}<option value="port">Port check</option>{{ end }}
-                  </select>
-                </div>
-                {{ if not .NoCustomIP }}
-                <div id="query-ip-field">
-                  <label for="query-ip" class="mb-2 block text-sm font-medium">IP address <span class="font-normal text-base-content/50">(optional)</span></label>
-                  <input id="query-ip" class="input w-full font-mono" placeholder="Your current IP" value="{{ if .ExplicitLookup }}{{ .IP }}{{ end }}" autocomplete="off" spellcheck="false" />
-                </div>
-                {{ end }}
-                <div id="port-field" class="hidden">
-                  <label for="query-port" class="mb-2 block text-sm font-medium">Port</label>
-                  <input id="query-port" type="number" min="1" max="65535" value="8080" class="input w-full font-mono" disabled />
-                </div>
-              </div>
-              <div class="rounded-box border border-base-300 bg-base-200 p-4">
-                <div class="mb-3 flex items-center justify-between gap-3">
-                  <span class="text-xs font-semibold tracking-wider text-base-content/60 uppercase">Terminal</span>
-                  <button id="copy-command" type="button" class="btn btn-ghost btn-xs">Copy command</button>
-                </div>
-                <code id="command" class="block break-all text-sm"></code>
-              </div>
-              <button id="run-query" type="submit" class="btn w-full">Run query <span aria-hidden="true">→</span></button>
-            </form>
-            <div>
-              <div class="mb-2 flex items-center justify-between gap-3">
-                <h3 class="text-sm font-medium">Response</h3>
-                <span id="query-status" role="status" class="text-xs text-base-content/60">Current address preview</span>
-              </div>
-              <pre id="query-output" class="max-h-80 overflow-auto whitespace-pre-wrap break-all rounded-box border border-base-300 p-4 text-sm" aria-live="polite"></pre>
-            </div>
-            <p class="text-xs leading-relaxed text-base-content/60">The service reports the address used to connect to it. Port checks test the connection's IP address.</p>
+        <section aria-labelledby="api-title" class="bb-card panel">
+          <div class="stack">
+            <p class="bb-eyebrow">API</p>
+            <h2 id="api-title">Make it a query.</h2>
+            <p class="small">Choose what you need. Copy the command or try it here.</p>
           </div>
+          <form id="query-form" class="stack">
+            <div class="form-grid">
+              <div class="field">
+                <label for="endpoint" class="field-label">Response</label>
+                <select id="endpoint" class="select">
+                  <option value="ip">IP address</option>
+                  <option value="json">Full JSON</option>
+                  <option value="country">Country</option>
+                  <option value="country-iso">Country code</option>
+                  <option value="city">City</option>
+                  <option value="coordinates">Coordinates</option>
+                  <option value="asn">ASN</option>
+                  <option value="asn-org">Network provider</option>
+                  {{ if .Port }}<option value="port">Port check</option>{{ end }}
+                </select>
+              </div>
+              {{ if not .NoCustomIP }}
+              <div id="query-ip-field" class="field">
+                <label for="query-ip" class="field-label">IP address <span class="muted">(optional)</span></label>
+                <input id="query-ip" class="input mono" placeholder="Your current IP" value="{{ if .ExplicitLookup }}{{ .IP }}{{ end }}" autocomplete="off" spellcheck="false" />
+              </div>
+              {{ end }}
+              <div id="port-field" class="field hidden">
+                <label for="query-port" class="field-label">Port</label>
+                <input id="query-port" type="number" min="1" max="65535" value="8080" class="input mono" disabled />
+              </div>
+            </div>
+            <div class="stack">
+              <span class="field-label">Terminal</span>
+              <div class="bb-code-block">
+                <pre class="bb-code"><code id="command"></code></pre>
+                <button id="copy-command" type="button" class="bb-code-copy">Copy command</button>
+              </div>
+            </div>
+            <button id="run-query" type="submit" class="bb-button bb-button--primary bb-button--block">Run query <span aria-hidden="true">→</span></button>
+          </form>
+          <div class="stack">
+            <div class="code-label">
+              <h3>Response</h3>
+              <span id="query-status" role="status" class="muted fine">Current address preview</span>
+            </div>
+            <pre id="query-output" class="bb-code query-output" aria-live="polite"></pre>
+          </div>
+          <p class="fine">The service reports the address used to connect to it. Port checks test the connection's IP address.</p>
         </section>
       </div>
     </main>
-    <footer class="footer footer-vertical mx-auto max-w-6xl gap-3 px-4 py-8 text-sm text-base-content/60 sm:footer-horizontal sm:items-center sm:justify-between sm:px-6">
+    <footer class="bb-footer site-footer">
       <aside>
         <p>bea.sh IPinfo <span aria-hidden="true">·</span> Powered by GeoLite2</p>
-        <p class="text-xs">GeoLite2 data created by <a href="https://www.maxmind.com" class="underline">MaxMind</a>.</p>
-        {{ if .StatisticsEnabled }}<p class="text-xs"><a href="/stats" id="usage-count" data-site="{{ .StatisticsSite }}" class="link link-hover">View usage statistics</a></p>{{ end }}
-        <div id="database-updates" class="hidden max-w-full text-xs">
+        <p class="fine">GeoLite2 data created by <a href="https://www.maxmind.com">MaxMind</a>.</p>
+        {{ if .StatisticsEnabled }}<p class="fine"><a href="/stats" id="usage-count" data-site="{{ .StatisticsSite }}">View usage statistics</a></p>{{ end }}
+        <div id="database-updates" class="hidden fine">
           <p data-database-common class="hidden">GeoLite2 updated: <time data-database-shared></time></p>
           <div data-database-details>
-            <p class="mb-1">GeoLite2 database updates</p>
-            <dl class="flex flex-wrap gap-x-4 gap-y-1">
-              <div class="flex gap-1"><dt>ASN:</dt><dd><time data-database="ASN">Unavailable</time></dd></div>
-              <div class="flex gap-1"><dt>City:</dt><dd><time data-database="City">Unavailable</time></dd></div>
-              <div class="flex gap-1"><dt>Country:</dt><dd><time data-database="Country">Unavailable</time></dd></div>
+            <p>GeoLite2 database updates</p>
+            <dl>
+              <div><dt>ASN:</dt><dd><time data-database="ASN">Unavailable</time></dd></div>
+              <div><dt>City:</dt><dd><time data-database="City">Unavailable</time></dd></div>
+              <div><dt>Country:</dt><dd><time data-database="Country">Unavailable</time></dd></div>
             </dl>
           </div>
-          <p data-database-success class="hidden mt-1">Last successful update: <time data-database-success-time></time></p>
+          <p data-database-success class="hidden">Last successful update: <time data-database-success-time></time></p>
         </div>
       </aside>
-      <nav class="flex flex-wrap gap-5" aria-label="Footer navigation">
-        <a href="https://bea.sh/" class="hover:underline">About</a>
-        <a href="https://bea.sh/#contact" class="hover:underline">Contact</a>
-        <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}" class="hover:underline">JSON API</a>
-        {{ if .StatisticsEnabled }}<a href="/stats" class="hover:underline">Statistics</a>{{ end }}
-        <button id="open-usage" type="button" aria-haspopup="dialog" aria-controls="usage-dialog" class="btn btn-link h-auto min-h-0 p-0 text-sm font-normal text-base-content/60 no-underline hover:underline">Usage</button>
-        <button data-install-app type="button" aria-haspopup="dialog" aria-controls="install-dialog" class="btn btn-link h-auto min-h-0 p-0 text-sm font-normal text-base-content/60 no-underline hover:underline hidden">Install app</button>
-        {{ if .Sponsor }}<a href="https://www.leaf.cloud" class="hover:underline">Hosting sponsor: Leafcloud</a>{{ end }}
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="https://bea.sh/">About</a>
+        <a href="https://bea.sh/#contact">Contact</a>
+        <a href="/json{{ if .ExplicitLookup }}?ip={{ .IP }}{{ end }}">JSON API</a>
+        {{ if .StatisticsEnabled }}<a href="/stats">Statistics</a>{{ end }}
+        <button id="open-usage" type="button" aria-haspopup="dialog" aria-controls="usage-dialog" class="link-button">Usage</button>
+        <button data-install-app type="button" aria-haspopup="dialog" aria-controls="install-dialog" class="link-button hidden">Install app</button>
+        {{ if .Sponsor }}<a href="https://www.leaf.cloud">Hosting sponsor: Leafcloud</a>{{ end }}
       </nav>
     </footer>
     {{ template "usage.html" . }}
     {{ template "pwa.html" . }}
+    {{ template "theme-toggle.html" . }}
     {{ template "script.html" . }}
     {{ template "network.html" . }}
     {{ template "local-time.html" . }}
