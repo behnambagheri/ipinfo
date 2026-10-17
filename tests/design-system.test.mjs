@@ -9,16 +9,20 @@ const origin = 'https://ip.bea.sh';
 const order = ['/ds/v1/tokens.css', '/ds/v1/base.css', '/ds/v1/components.css', '/styles.css'];
 const stylesheets = html => [...html.matchAll(/<link rel="stylesheet" href="([^"?]+)\?v=[0-9a-f]{10}"/g)].map(match => match[1]);
 
-test('every page loads the vendored design system, then the site stylesheet, with the teal accent', async () => {
+test('every page loads the vendored design system, then the site stylesheet, in the default blue accent', async () => {
   const home = await (await handleRequest(new Request(origin, { headers: { Accept: 'text/html', 'CF-Connecting-IP': '1.1.1.1' } }))).text();
   for (const html of [home, renderStatistics({ Site: 'ip.bea.sh' }), renderAdmin({})]) {
     assert.deepEqual(stylesheets(html), order);
-    assert.match(html, /<html lang="en" data-product="teal">/);
     assert.match(html, /class="bb-header"/);
     assert.match(html, /id="theme-toggle" class="bb-theme-toggle"/);
     assert.match(html, /localStorage\.getItem\("bb-theme"\)/);
     assert.ok(!/\b(btn|card-body|base-content|daisy)/.test(html));
   }
+  assert.match(home, /<html lang="en" data-product="blue">/);
+  assert.match(home, /<meta name="theme-color" content="#2563eb" \/>/);
+  assert.match(renderStatistics({ Site: 'ip.bea.sh', Accent: 'violet' }), /<html lang="en" data-product="violet">/);
+  // The admin page stays on the default accent so each picker swatch shows its own colours.
+  assert.match(renderAdmin({}), /<html lang="en">/);
   assert.match(home, /class="bb-footer site-footer"/);
   assert.match(home, /href="https:\/\/bea\.sh"/);
   // The offline page is cached alone by the service worker, so its styles are inline.

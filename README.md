@@ -305,6 +305,27 @@ remain available. Containers without that reporting configuration have no
 central rate limit. Deploy the Worker migration and updated Worker before
 deploying the updated container; an older Worker has no limit-check endpoint.
 
+### Admin appearance
+
+Open `/admin`, select a site in **Appearance**, choose one of the design-system
+accents (blue, teal, cyan, indigo, violet, or fuchsia), and click **Save accent**.
+Both sites default to blue, the bea.sh accent. The choice sets `data-product` on
+`<html>` and the browser `theme-color` for the home and statistics pages; the
+admin page itself stays blue so each swatch shows its own colours. The cached
+offline page reuses the last accent the browser saw.
+
+`migrations/0004_appearance.sql` adds the per-site setting. The Worker reads it
+only when rendering HTML, through a 30-second per-isolate cache; API and CLI
+responses never read it, and a D1 failure falls back to the last known accent or
+blue. Saves require the same Access JWT and same-origin JSON PUT as rate limits.
+
+A container configured with `IPINFO_STATS_ENDPOINT` and `IPINFO_STATS_REPORT_TOKEN`
+reads its accent from authenticated `GET /internal/appearance` once a minute
+through the statistics egress proxy and saves it as `appearance.json` in the
+statistics directory. Pages never wait for that request: while the Worker is
+unreachable the container keeps the last saved accent, and without reporting
+configuration it stays blue. The reporting token can read but not change it.
+
 ### Cloudflare setup
 
 `wrangler.jsonc` binds `USAGE_DB` to `bea-ipinfo-usage`.

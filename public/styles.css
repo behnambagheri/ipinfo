@@ -760,3 +760,65 @@ details[open] summary {
     width: auto;
   }
 }
+
+/* Admin accent picker: each swatch shows its product's light and dark accent */
+.appearance-site {
+  max-width: 320px;
+}
+
+.accent-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--bb-space-sm);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.accent-options legend {
+  margin-bottom: var(--bb-space-sm);
+  padding: 0;
+}
+
+.accent-option {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--bb-space-sm);
+  min-height: 40px;
+  padding: var(--bb-space-xs) var(--bb-space-md);
+  border: 1px solid var(--bb-line);
+  border-radius: var(--bb-radius-md);
+  background: var(--bb-surface);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.accent-option input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.accent-option:has(input:checked) {
+  border-color: var(--bb-text);
+  box-shadow: inset 0 0 0 1px var(--bb-text);
+}
+
+.accent-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--bb-accent) 72%, transparent);
+  outline-offset: 3px;
+}
+
+.accent-options:disabled .accent-option {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.accent-swatch {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--bb-radius-full);
+  background: linear-gradient(135deg, var(--bb-accent-light) 50%, var(--bb-accent-dark) 50%);
+  box-shadow: 0 0 0 1px var(--bb-line);
+}

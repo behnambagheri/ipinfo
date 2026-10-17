@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-product="teal">
+<html lang="en" data-product="{{ .Accent }}">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -16,7 +16,7 @@
     <meta property="og:image:alt" content="IPinfo logo" />
     <meta name="twitter:card" content="summary" />
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"IPinfo","alternateName":"IPinfo — bea.sh","url":"{{ .Canonical }}","description":"Shows your public IPv4 or IPv6 address, ISP/ASN, and approximate location, and looks up any IP address through a web interface, JSON API, curl, and MCP.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@type":"Organization","name":"bea.sh","url":"https://bea.sh"},"sameAs":["https://github.com/behnambagheri/ipinfo"]}</script>
-    <meta name="theme-color" content="#0f766e" />
+    <meta name="theme-color" content="{{ .ThemeColor }}" />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/brand/ipinfo.svg" type="image/svg+xml" sizes="any" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180" />
