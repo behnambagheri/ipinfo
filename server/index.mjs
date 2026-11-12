@@ -9,7 +9,6 @@ import { serverConfig } from './config.mjs';
 import { LocalDatabases, openDatabases } from './databases.mjs';
 import { DatabaseUpdater } from './updates.mjs';
 import { ContainerStatistics, statisticsConfig } from './statistics.mjs';
-import { ContainerRateLimits } from './rate-limits.mjs';
 import { ContainerAppearance } from './appearance.mjs';
 
 export function clientIP(incoming, headers) {
@@ -44,7 +43,7 @@ function checkPort(ip, value) {
     socket.once('error', error => { socket.destroy(); resolve({ ip, port, reachable: false, status: error.code === 'ECONNREFUSED' ? 'refused' : 'unreachable', elapsed_ms: Math.round(performance.now() - started) }); });
   });
 }
-export function createHTTPServer(databases, updater, config, statistics, rateLimits, appearance) {
+export function createHTTPServer(databases, updater, config, statistics, appearance) {
   const env = { BUILD_REVISION: config.revision, get GEOIP_RELEASE() { return databases.release; },
     LOCAL_GEOIP: { lookup: ip => databases.lookup(ip), info: () => databases.info(updater.status) } };
   return createServer({ requestTimeout: 15000, headersTimeout: 10000, maxHeaderSize: 16384 }, async (incoming, outgoing) => {
@@ -66,7 +65,6 @@ export function createHTTPServer(databases, updater, config, statistics, rateLim
       const request = new Request(`${secure ? 'https' : 'http'}://${host}${incoming.url}`, { method: incoming.method, headers: requestHeaders, body });
       const ip = clientIP(incoming, config.headers);
       const context = { clientIP: ip || '', disableCustomIP: config.disableCustomIP, canonicalOrigin: config.canonicalOrigin, statistics, visitors: statistics?.visitors,
-        rateLimit: rateLimits ? source => rateLimits.check(source) : undefined,
         accent: appearance ? () => appearance.accent() : undefined,
         hostname: config.reverseLookup ? hostname : undefined,
         portCheck: config.portLookup ? value => checkPort(ip, value) : undefined };
@@ -86,7 +84,7 @@ export async function startServer(env = process.env) {
   const databases = new LocalDatabases(await openDatabases(config.databasePaths), config.cacheSize);
   const updater = await new DatabaseUpdater(databases, { env, directory: config.updateDirectory }).initialize(join(dirname(config.databasePaths.ASN || '/data/geolite2/ASN'), 'release.json'));
   const appearance = statsConfig ? await new ContainerAppearance(statsConfig).initialize() : undefined;
-  const server = createHTTPServer(databases, updater, config, statistics, statsConfig ? new ContainerRateLimits(statsConfig) : undefined, appearance);
+  const server = createHTTPServer(databases, updater, config, statistics, appearance);
   await new Promise((resolve, reject) => { server.once('error', reject); server.listen(config.port, config.host, resolve); });
   updater.start();
   statistics?.start();

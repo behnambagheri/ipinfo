@@ -276,8 +276,9 @@ existing aggregate counts cannot reconstruct historical source IPs.
 Open `/admin`, select a site in **Request rate limit**, then choose **No limit**
 or **Custom limit**, enter the request count, choose Second, Minute, Hour, or Day,
 and click **Save rate limit**. For example, one request per minute allows one
-diagnostic request from each source IP every 60 seconds. Both sites default to
-no limit. Rules persist in D1 independently of visitor recording.
+diagnostic request from each source IP every 60 seconds. The Worker defaults to
+no limit. Rules persist in D1 independently of visitor recording. The container
+does not enforce these rules.
 
 Each site has one rule applied separately to every normalized source IP. IP
 lookups and port checks share the same budget; GET and HEAD consume slots.
@@ -292,18 +293,15 @@ the window. Saving a rule resets that site's active windows.
 `migrations/0003_rate_limits.sql` adds settings and temporary counters. Counter
 keys hash the site and source IP rather than retaining plaintext addresses, and
 the daily cron deletes expired counters. Admission uses one atomic D1 statement
-so concurrent Worker instances and container replicas share the same budget.
+so concurrent Worker instances share the same budget.
 Admin saves require a signed Access JWT and a same-origin JSON PUT; the reporting
 token cannot edit rules.
 
-When configured with `IPINFO_STATS_ENDPOINT` and `IPINFO_STATS_REPORT_TOKEN`, the
-updated container checks its budget through authenticated `/internal/rate-limit`
-requests, using the same egress proxy as statistics. This adds a synchronous
-Worker/D1 dependency to diagnostic requests, including when the rule is unlimited.
-If the limit check fails, diagnostics return HTTP 503; health and support routes
-remain available. Containers without that reporting configuration have no
-central rate limit. Deploy the Worker migration and updated Worker before
-deploying the updated container; an older Worker has no limit-check endpoint.
+The self-hosted container does not enforce the central rate limit or call
+`/internal/rate-limit`. Statistics and appearance still synchronize in the
+background; collector failures do not block diagnostics. The admin rate-limit
+policy applies to `ip.bea.sh`; any saved policy for `ip.behnam.pro` is ignored
+by the container. The legacy internal endpoint remains for older containers.
 
 ### Admin appearance
 
