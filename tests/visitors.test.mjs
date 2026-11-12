@@ -60,6 +60,7 @@ test('Cloudflare source metadata comes from trusted edge fields and recording fa
 });
 
 test('SQLite aggregation is site scoped, ranked, paginated and idempotent across replicas and out-of-order reports', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: now.getTime() });
   const { db } = await usageDatabase(t), visitors = new WorkerVisitors(db);
   await visitors.record(event()); await visitors.record(event());
   await visitors.record(event('1.1.1.1', now, { country: 'Australia', city: 'Sydney', asn_org: 'Cloudflare' }));
