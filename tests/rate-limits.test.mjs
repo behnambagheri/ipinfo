@@ -8,7 +8,7 @@ import { WorkerRateLimits, rateLimitCollectionResponse } from '../worker/rate-li
 import { workerSite, containerSite } from '../worker/statistics.mjs';
 import { handleCloudflareRequest } from '../worker/cloudflare.mjs';
 import { adminResponse } from '../worker/admin.mjs';
-import { ContainerRateLimits } from '../server/rate-limits.mjs';
+import { ContainerStatistics } from '../server/statistics.mjs';
 import { createHTTPServer } from '../server/index.mjs';
 import { serverConfig } from '../server/config.mjs';
 import { LocalDatabases, openDatabases } from '../server/databases.mjs';
@@ -99,32 +99,32 @@ test('Worker checks before diagnostics, uses source identity, returns 429 and ex
   assert.equal((await handleCloudflareRequest(request('/healthz'), broken)).status, 200);
 });
 
-test('container replicas share the central budget over authenticated transport and reject unavailable limits', async t => {
-  const { db } = await usageDatabase(t), limits = new WorkerRateLimits(db);
-  await limits.save(policy(containerSite));
-  const config = { endpoint: `https://${workerSite}/internal/usage`, token };
-  const fetcher = (url, options) => rateLimitCollectionResponse(new Request(url, options), { IPINFO_STATS_REPORT_TOKEN: token }, limits);
-  const one = new ContainerRateLimits(config, { fetcher }), two = new ContainerRateLimits(config, { fetcher });
-  assert.equal((await one.check('8.8.8.8')).allowed, true);
-  assert.equal((await two.check('8.8.8.8')).allowed, false);
-  assert.equal((await two.check('1.1.1.1')).allowed, true);
-  assert.equal((await limits.check(workerSite, '8.8.8.8')).allowed, true);
+test('container diagnostics stay available when the statistics collector is offline', async t => {
   const directory = await mkdtemp(join(tmpdir(), 'ipinfo-rate-limits-'));
   const { paths } = await writeFixtures(directory);
-  const server = createHTTPServer(new LocalDatabases(await openDatabases(paths), 0), { status: {} }, serverConfig({ IPINFO_REVERSE_LOOKUP: 'false' }), undefined, one);
+  let calls = 0;
+  const statistics = await new ContainerStatistics({ directory: join(directory, 'statistics'), endpoint: `https://${workerSite}/internal/usage`, token },
+    { fetcher: async () => { calls++; throw new Error('Collector is offline'); } }).initialize();
+  const server = createHTTPServer(new LocalDatabases(await openDatabases(paths), 0), { status: {} }, serverConfig({ IPINFO_REVERSE_LOOKUP: 'false' }), statistics);
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => { server.closeAllConnections(); await new Promise(resolve => server.close(resolve)); await rm(directory, { recursive: true, force: true }); });
   const origin = `http://127.0.0.1:${server.address().port}`;
-  assert.equal((await fetch(origin + '/ip')).status, 200);
-  assert.equal((await fetch(origin + '/json')).status, 429);
-  assert.equal((await fetch(origin + '/healthz')).status, 200);
+  await statistics.sync();
+  const before = calls;
+  for (const route of ['/ip', '/json', '/json?ip=81.2.69.160', '/healthz']) {
+    assert.equal((await fetch(origin + route)).status, 200);
+  }
+  assert.equal(calls, before, 'diagnostics must not contact the collector');
+  assert.throws(() => statistics.snapshot(), /not synchronized/);
+  assert.equal((await fetch(origin + '/stats.json')).status, 503);
+});
+
+test('legacy rate-limit collector still requires authorization and validates source IPs', async t => {
+  const { db } = await usageDatabase(t), limits = new WorkerRateLimits(db);
+  const fetcher = (url, options) => rateLimitCollectionResponse(new Request(url, options), { IPINFO_STATS_REPORT_TOKEN: token }, limits);
   assert.equal((await rateLimitCollectionResponse(request('/internal/rate-limit', { method: 'POST' }), {}, limits)).status, 401);
   for (const body of [{ ip: 'bad' }, { ip: '8.8.8.8', site: workerSite }]) {
     const response = await fetcher(`https://${workerSite}/internal/rate-limit`, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
     assert.equal(response.status, 400);
   }
-  for (const value of [{ allowed: true }, { allowed: false, retry_after: 0 }, { allowed: true, retry_after: 60 }, { allowed: false, retry_after: 86401 }]) {
-    await assert.rejects(new ContainerRateLimits(config, { fetcher: async () => Response.json(value) }).check('8.8.8.8'));
-  }
-  await assert.rejects(new ContainerRateLimits(config, { fetcher: async () => new Response('', { status: 503 }) }).check('8.8.8.8'));
 });
